@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "dependencies": {
     "@cap-js/hana": "^2",
+    "@cpi-ai/compiler": "github:SahasranamanAdesso/cpi-ai-compiler#main",
     "@sap/cds": "^9",
-    "@sap/xssec": "^4"
+    "@sap/xssec": "^4",
+    "sap-integration-sdk": "github:SahasranamanAdesso/cpi-ai-compiler#main"
   },
   "devDependencies": {
     "@cap-js/sqlite": "^2.4",
