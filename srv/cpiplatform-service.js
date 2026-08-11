@@ -370,6 +370,89 @@ object.
 
 Do not omit content.
 
+RESOURCE PATH RULES
+
+The resource packager automatically places resources into the
+appropriate compiler resource directory based on their "type".
+
+Therefore the resource "name" MUST be a filename or relative
+filename only.
+
+NEVER include the resource type directory in the name.
+
+For XSD:
+
+CORRECT:
+{
+    "type": "xsd",
+    "name": "DomesticOrder.xsd",
+    "content": "..."
+}
+
+INCORRECT:
+{
+    "type": "xsd",
+    "name": "/xsd/DomesticOrder.xsd",
+    "content": "..."
+}
+
+INCORRECT:
+{
+    "type": "xsd",
+    "name": "xsd/DomesticOrder.xsd",
+    "content": "..."
+}
+
+For Groovy:
+
+CORRECT:
+{
+    "type": "groovy",
+    "name": "transform.groovy",
+    "content": "..."
+}
+
+INCORRECT:
+{
+    "type": "groovy",
+    "name": "/groovy/transform.groovy",
+    "content": "..."
+}
+
+For mapping:
+
+CORRECT:
+{
+    "type": "mapping",
+    "name": "OrderMapping.mmap",
+    "content": "..."
+}
+
+For XSLT:
+
+CORRECT:
+{
+    "type": "xslt",
+    "name": "transform.xslt",
+    "content": "..."
+}
+
+The compiler/packager is responsible for adding the appropriate
+resource directory.
+
+Never prefix resource names with:
+"/xsd/"
+"xsd/"
+"/groovy/"
+"groovy/"
+"/mapping/"
+"mapping/"
+"/xslt/"
+"xslt/"
+
+Resource names must not begin with "/".
+
+Resource names must not contain the resource type directory.
 
 CONTENT MODIFIER RULES
 
@@ -393,6 +476,43 @@ For example, when supported:
 Do not invent alternative property names when they are not
 supported by the compiler.
 
+PROCESSCALL RULES
+
+ProcessCall is a compiler-supported component type.
+
+IMPORTANT:
+
+Do not create multiple ProcessCall components in the same
+iFlow unless the compiler capabilities explicitly indicate
+that multiple ProcessCall instances are supported.
+
+If the requested scenario requires multiple independent
+processing services and multiple ProcessCall instances cause
+compiler validation errors, use supported adapter/component
+types that can represent the requested processing services.
+
+Never create duplicate internal compiler component instances.
+
+Component IDs in the generated JSON MUST be unique.
+
+Before returning the JSON, check that no two components have
+the same id.
+
+For example, this is valid at the JSON level:
+
+{
+    "id": "domesticService",
+    "type": "ProcessCall"
+}
+
+{
+    "id": "internationalService",
+    "type": "ProcessCall"
+}
+
+However, if the compiler rejects multiple ProcessCall
+instances, do not repeatedly regenerate the same structure.
+Use an alternative supported representation.
 
 URL RULES
 
@@ -926,90 +1046,50 @@ Return the COMPLETE corrected compiler JSON only.
   // BUILD FLOW
   // ============================================================
 
-  async function buildFlow(prompt) {
+async function buildFlow(prompt) {
 
-    const aiJson =
-      await generateCompilerJson(
-        prompt
-      );
+    let aiJson =
+        await generateCompilerJson(prompt);
 
-    console.log(
-      "\n===== FACTORY INPUT ====="
-    );
+    // --------------------------------------------------------
+    // Normalize resource filenames before compiler factory
+    // --------------------------------------------------------
 
-    console.log(
-      JSON.stringify(
-        aiJson,
-        null,
-        2
-      )
-    );
-
-    console.log(
-      "=========================\n"
-    );
+    aiJson =
+        normalizeResourceNames(aiJson);
 
     let flow;
 
     try {
 
-      flow =
-        fromJson(aiJson);
+        flow =
+            fromJson(aiJson);
 
     } catch (error) {
 
-      console.error(
-        "\n===== FACTORY ERROR ====="
-      );
-
-      console.error(
-        error
-      );
-
-      console.error(
-        "=========================\n"
-      );
-
-      throw new Error(
-        `Invalid compiler JSON: ${error.message}`
-      );
+        throw new Error(
+            `Invalid compiler JSON: ${error.message}`
+        );
     }
-
 
     const validation =
-      validate(flow);
-
-    console.log(
-      "\n===== VALIDATION ====="
-    );
-
-    console.log(
-      validation
-    );
-
-    console.log(
-      "======================\n"
-    );
-
+        validate(flow);
 
     if (
-      !validation.valid
+        !validation.valid
     ) {
 
-      throw new Error(
-        JSON.stringify(
-          validation
-        )
-      );
+        throw new Error(
+            JSON.stringify(validation)
+        );
     }
 
-
     return {
-      aiJson,
-      flow,
-      validation
+        aiJson,
+        flow,
+        validation
     };
-  }
+}
 
 
   // ============================================================
@@ -1278,5 +1358,52 @@ Return the COMPLETE corrected compiler JSON only.
       }
     }
   );
+
+  function normalizeResourceNames(aiJson) {
+
+    if (
+        !aiJson ||
+        !Array.isArray(aiJson.resources)
+    ) {
+        return aiJson;
+    }
+
+    aiJson.resources =
+        aiJson.resources.map(resource => {
+
+            if (
+                !resource ||
+                typeof resource.name !== "string"
+            ) {
+                return resource;
+            }
+
+            let name =
+                resource.name.trim();
+
+            // Remove leading slash
+            name =
+                name.replace(/^\/+/, "");
+
+            // Remove duplicated resource directory
+            if (
+                resource.type &&
+                name.startsWith(
+                    `${resource.type}/`
+                )
+            ) {
+                name =
+                    name.substring(
+                        resource.type.length + 1
+                    );
+            }
+
+            resource.name = name;
+
+            return resource;
+        });
+
+    return aiJson;
+}
 
 });

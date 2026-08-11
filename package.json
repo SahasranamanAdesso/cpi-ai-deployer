@@ -11,10 +11,17 @@
   },
   "devDependencies": {
     "@cap-js/sqlite": "^2.4",
-    "@sap/cds-dk": "^9"
+    "@sap/cds-dk": "^9",
+    "cds-plugin-ui5": "^0.17.0",
+    "mbt": "^1.2.49",
+    "rimraf": "^5.0.5"
   },
   "scripts": {
-    "start": "cds-serve"
+    "start": "cds-serve",
+    "watch-iflowstudio": "cds watch --open iflowstudio/index.html?sap-ui-xx-viewCache=false --livereload false",
+    "undeploy": "cf undeploy cpi-ai-platform --delete-services --delete-service-keys --delete-service-brokers",
+    "build": "rimraf resources mta_archives && mbt build --mtar archive",
+    "deploy": "cf deploy mta_archives/archive.mtar --retries 1"
   },
   "private": true,
   "cds": {
@@ -25,5 +32,8 @@
       "connectivity": true,
       "destinations": true
     }
-  }
+  },
+  "workspaces": [
+    "app/*"
+  ]
 }
