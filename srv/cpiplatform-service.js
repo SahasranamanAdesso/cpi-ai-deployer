@@ -57,6 +57,25 @@ module.exports = cds.service.impl(function () {
           "ProcessCall"
         ],
 
+        resources: {
+          type: [
+            "groovy",
+            "mapping",
+            "xsd",
+            "xslt"
+          ],
+          schema: {
+            type: "string",
+            name: "string",
+            content: "string"
+          },
+          required: [
+            "type",
+            "name",
+            "content"
+          ]
+        },
+
         rules: {
           unknownTypes: "forbidden",
           inventedTypes: "forbidden",
@@ -101,15 +120,9 @@ GENERIC JSON CONTRACT accepted by the compiler.
 The compiler capabilities below are the AUTHORITATIVE source
 of truth.
 
-============================================================
-COMPILER CAPABILITIES
-============================================================
-
 ${JSON.stringify(capabilities, null, 2)}
 
-============================================================
-STRICT RULES
-============================================================
+IMPORTANT OUTPUT RULES
 
 1. Return ONLY valid JSON.
 
@@ -121,11 +134,9 @@ STRICT RULES
 
 5. Use ONLY adapter types present in the compiler capabilities.
 
-6. Use ONLY component types present in the compiler
-   capabilities.
+6. Use ONLY component types present in the compiler capabilities.
 
-7. Use ONLY configuration properties supported by the
-   compiler.
+7. Use ONLY configuration properties supported by the compiler.
 
 8. NEVER invent component types.
 
@@ -139,7 +150,7 @@ STRICT RULES
 12. Do not use implementation-specific SAP names unless they
     are explicitly present in the capabilities.
 
-13. In particular, NEVER invent:
+13. NEVER invent unsupported types such as:
     ScriptCollection
     CustomScript
     CustomAdapter
@@ -149,9 +160,19 @@ STRICT RULES
 14. The generated JSON must be directly consumable by
     fromJson().
 
-============================================================
-JSON STRUCTURE
-============================================================
+15. Preserve the user's requested component names as component
+    configuration/name values where supported, but use valid
+    generic compiler component types and schemas.
+
+16. Do not create a component simply because a natural-language
+    concept sounds like a CPI component. Use only types supported
+    by the compiler.
+
+17. If a requested capability cannot be represented by the
+    compiler contract, do not invent a schema for it.
+
+
+GENERIC IFLOW JSON STRUCTURE
 
 {
   "name": "FlowName",
@@ -179,9 +200,8 @@ JSON STRUCTURE
   "resources": []
 }
 
-============================================================
-SENDER / RECEIVER
-============================================================
+
+SENDER AND RECEIVER
 
 sender and receiver are top-level properties.
 
@@ -197,31 +217,49 @@ receiver
 
 or actual component IDs.
 
-============================================================
-CONNECTIONS
-============================================================
 
-Every requested component must be connected.
+CONNECTION RULES
+
+Every requested component that participates in the message flow
+must have the required explicit connections.
+
+Connection format:
+
+{
+  "from": "componentId",
+  "to": "componentId"
+}
+
+The special connection endpoints may be:
+
+"sender"
+"receiver"
+
+All other connection endpoints must be actual component IDs.
 
 Every connection target must actually exist.
 
-Typical structure:
+Do not invent IDs.
+
+Do not create connections to nonexistent components.
+
+
+TYPICAL FLOW
 
 sender
-  ↓
+↓
 component1
-  ↓
+↓
 component2
-  ↓
+↓
 receiver
 
-============================================================
-ROUTER
-============================================================
+
+ROUTER RULES
 
 Router routes and connections MUST correspond.
 
-Example:
+Example structure:
 
 {
   "id": "router1",
@@ -229,18 +267,18 @@ Example:
   "config": {
     "routes": [
       {
-        "condition": "\${header.Country} == 'IN'",
+        "condition": "\\\${header.Country} == 'IN'",
         "target": "groovy1"
       },
       {
-        "condition": "\${header.Country} != 'IN'",
+        "condition": "\\\${header.Country} != 'IN'",
         "target": "receiver"
       }
     ]
   }
 }
 
-The connections MUST contain:
+The corresponding connections must contain:
 
 {
   "from": "router1",
@@ -257,21 +295,83 @@ and:
 Never create a Router route without its corresponding
 connection.
 
-============================================================
-GROOVY SCRIPT
-============================================================
+Router route targets must be either valid component IDs or valid
+flow endpoints supported by the compiler contract.
+
+
+GROOVY SCRIPT RULES
 
 Use ONLY the GroovyScript schema exposed by the compiler.
 
 Do NOT invent ScriptCollection.
 
-Do NOT invent script properties.
+Do NOT invent custom script properties.
 
 If the compiler requires scriptName, provide scriptName.
 
-============================================================
-CONTENT MODIFIER
-============================================================
+When a Groovy resource is required, reference the resource using
+the compiler-supported GroovyScript configuration.
+
+
+RESOURCE RULES
+
+Resources MUST be an array of OBJECTS.
+
+Resources MUST NOT be an array of strings.
+
+Every resource object MUST contain:
+
+- type
+- name
+- content
+
+Generic resource structure:
+
+{
+  "type": "groovy",
+  "name": "transform.groovy",
+  "content": "full resource content"
+}
+
+The supported resource type MUST come from the compiler
+capabilities.
+
+Do NOT invent resource types.
+
+Do NOT generate:
+
+"resources": [
+  "groovy"
+]
+
+Do NOT generate:
+
+"resources": [
+  "transform.groovy"
+]
+
+Do NOT generate resource objects missing required fields.
+
+Correct generic structure:
+
+"resources": [
+  {
+    "type": "groovy",
+    "name": "transform.groovy",
+    "content": "def Message processData(Message message) { return message; }"
+  }
+]
+
+For every requested resource, provide its complete content as
+a string.
+
+Do not use external filenames without the required resource
+object.
+
+Do not omit content.
+
+
+CONTENT MODIFIER RULES
 
 Use the compiler's canonical ContentModifier structure.
 
@@ -290,11 +390,17 @@ For example, when supported:
   }
 }
 
-============================================================
-URL NORMALIZATION
-============================================================
+Do not invent alternative property names when they are not
+supported by the compiler.
+
+
+URL RULES
 
 URLs MUST be plain strings.
+
+If the user provides a Markdown URL, extract only the actual URL.
+
+For example:
 
 Correct:
 
@@ -304,18 +410,28 @@ Incorrect:
 
 "[https://example.com/orders](https://example.com/orders)"
 
-If the user provides a Markdown URL, extract only the actual
-URL.
+Do not preserve Markdown link syntax inside JSON string values.
 
-============================================================
-FINAL RULE
-============================================================
 
-The compiler capabilities are the source of truth.
+FINAL VALIDATION RULES
 
-Do not guess.
+Before returning JSON, verify:
 
-Do not invent.
+- The JSON is syntactically valid.
+- All adapter types are supported.
+- All component types are supported.
+- All configuration properties are supported.
+- All resource objects have type, name, and content.
+- All component IDs are unique.
+- All connection endpoints exist.
+- Every requested component is connected appropriately.
+- Router targets correspond to actual components or valid flow
+  endpoints.
+- No unsupported component types are invented.
+- No unsupported resource types are invented.
+- No ScriptCollection is invented.
+- No Markdown URLs remain.
+- The result can be consumed directly by fromJson().
 
 Return ONLY the complete compiler JSON.
 `;
@@ -325,8 +441,7 @@ Return ONLY the complete compiler JSON.
   // ============================================================
   // AI -> COMPILER JSON
   //
-  // IMPORTANT:
-  // This function now retries after actual compiler errors.
+  // Retries after actual compiler/factory/validation errors.
   // ============================================================
 
   async function generateCompilerJson(prompt) {
@@ -356,7 +471,7 @@ Return ONLY the complete compiler JSON.
       let response;
 
       // ========================================================
-      // EXISTING AI HUB CALL
+      // AI HUB CALL
       // ========================================================
 
       try {
@@ -366,7 +481,7 @@ Return ONLY the complete compiler JSON.
             "https://adesso-ai-hub.3asabc.de/v1/chat/completions",
             {
               model:
-                "deepseek-v4-flash-sovereign",
+                "gemma-4-26b-sovereign",
 
               temperature: 0,
 
@@ -407,6 +522,7 @@ Return ONLY the complete compiler JSON.
         );
       }
 
+
       // ========================================================
       // RAW RESPONSE
       // ========================================================
@@ -431,6 +547,7 @@ Return ONLY the complete compiler JSON.
       console.log(
         "===========================\n"
       );
+
 
       // ========================================================
       // CLEAN JSON
@@ -496,6 +613,11 @@ Return ONLY JSON.
         continue;
       }
 
+
+      // ========================================================
+      // PARSED JSON
+      // ========================================================
+
       console.log(
         "\n===== PARSED AI JSON ====="
       );
@@ -511,6 +633,7 @@ Return ONLY JSON.
       console.log(
         "==========================\n"
       );
+
 
       // ========================================================
       // FACTORY
@@ -549,15 +672,6 @@ Return ONLY JSON.
           );
         }
 
-        /*
-         * Send ACTUAL compiler error back to AI.
-         *
-         * This is deliberately generic.
-         *
-         * We do NOT hard-code ScriptCollection,
-         * Router IDs, Groovy IDs, etc.
-         */
-
         currentPrompt = `
 The compiler rejected the JSON you generated.
 
@@ -582,9 +696,12 @@ IMPORTANT:
 - Do NOT invent component types.
 - Do NOT invent adapter types.
 - Do NOT invent properties.
-- Do NOT use ScriptCollection unless it exists in the
-  compiler capabilities.
-- If GroovyScript requires scriptName, provide it.
+- Do NOT invent resource types.
+- Resources MUST be objects with:
+  { "type": "...", "name": "...", "content": "..." }
+- Do NOT use ScriptCollection unless it exists in the compiler
+  capabilities.
+- If GroovyScript requires scriptName, provide scriptName.
 - Preserve valid portions.
 - Make all references point to real component IDs.
 - Make sure every requested component is connected.
@@ -596,6 +713,7 @@ Return the COMPLETE corrected JSON only.
 
         continue;
       }
+
 
       // ========================================================
       // VALIDATION
@@ -658,6 +776,11 @@ Return ONLY the complete corrected JSON.
         continue;
       }
 
+
+      // ========================================================
+      // VALIDATION RESULT
+      // ========================================================
+
       console.log(
         "\n===== VALIDATION ====="
       );
@@ -669,6 +792,7 @@ Return ONLY the complete corrected JSON.
       console.log(
         "======================\n"
       );
+
 
       // ========================================================
       // SUCCESS
@@ -684,6 +808,7 @@ Return ONLY the complete corrected JSON.
 
         return aiJson;
       }
+
 
       // ========================================================
       // VALIDATION FAILED
@@ -716,9 +841,10 @@ Return ONLY the complete corrected JSON.
         );
       }
 
-      /*
-       * Give the actual compiler validation back to AI.
-       */
+
+      // ========================================================
+      // RETRY WITH ACTUAL VALIDATION ERROR
+      // ========================================================
 
       currentPrompt = `
 The compiler validation failed.
@@ -752,29 +878,42 @@ IMPORTANT:
 
 4. Do not invent properties.
 
-5. Use ONLY compiler capabilities.
+5. Do not invent resource types.
 
-6. Preserve valid parts of the JSON.
+6. Use ONLY compiler capabilities.
 
-7. Every connection target must exist.
+7. Preserve valid parts of the JSON.
 
-8. Every requested component must be connected.
+8. Every connection target must exist.
 
-9. Every Router route must have the appropriate connection.
+9. Every requested component must be connected.
 
-10. If the error reports that a Router has N routes but fewer
+10. Every Router route must have the appropriate connection.
+
+11. If the error reports that a Router has N routes but fewer
     connections, add the missing connections.
 
-11. If a GroovyScript requires scriptName, provide scriptName.
+12. If a GroovyScript requires scriptName, provide scriptName.
 
-12. Do not use ScriptCollection unless it is explicitly
+13. Resources MUST use this generic structure:
+
+    {
+      "type": "supported-resource-type",
+      "name": "filename",
+      "content": "complete file content"
+    }
+
+14. Never represent resources as strings.
+
+15. Do not use ScriptCollection unless it is explicitly
     supported by the compiler.
 
-13. Normalize Markdown URLs to plain URLs.
+16. Normalize Markdown URLs to plain URLs.
 
 Return the COMPLETE corrected compiler JSON only.
 `;
     }
+
 
     throw new Error(
       lastError ||
@@ -836,6 +975,7 @@ Return the COMPLETE corrected compiler JSON only.
       );
     }
 
+
     const validation =
       validate(flow);
 
@@ -851,6 +991,7 @@ Return the COMPLETE corrected compiler JSON only.
       "======================\n"
     );
 
+
     if (
       !validation.valid
     ) {
@@ -861,6 +1002,7 @@ Return the COMPLETE corrected compiler JSON only.
         )
       );
     }
+
 
     return {
       aiJson,
@@ -952,19 +1094,23 @@ Return the COMPLETE corrected compiler JSON only.
             prompt
           );
 
+
         const zip =
           await compileToZip(
             flow
           );
+
 
         const zipBuffer =
           Buffer.isBuffer(zip)
             ? zip
             : Buffer.from(zip);
 
+
         console.log(
           `ZIP generated: ${zipBuffer.length} bytes`
         );
+
 
         return JSON.stringify({
           status: "success",
@@ -1037,6 +1183,7 @@ Return the COMPLETE corrected compiler JSON only.
             prompt
           );
 
+
         if (
           !validation.valid
         ) {
@@ -1049,12 +1196,15 @@ Return the COMPLETE corrected compiler JSON only.
           );
         }
 
+
         const zip =
           await compileToZip(
             flow
           );
 
+
         let zipBuffer;
+
 
         if (
           Buffer.isBuffer(zip)
@@ -1087,13 +1237,13 @@ Return the COMPLETE corrected compiler JSON only.
           );
         }
 
+
         console.log(
           `ZIP ready for download: ${zipBuffer.length} bytes`
         );
 
+
         /*
-         * IMPORTANT:
-         *
          * Return a real Readable stream.
          *
          * This avoids:
