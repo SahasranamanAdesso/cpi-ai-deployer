@@ -30,7 +30,17 @@
         "auth": "xsuaa"
       },
       "connectivity": true,
-      "destinations": true
+      "destinations": true,
+      "auth": {
+        "users": {
+          "deployer": {
+            "password": "deployer",
+            "roles": [
+              "DeployIFlow"
+            ]
+          }
+        }
+      }
     }
   },
   "workspaces": [

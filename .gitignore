@@ -7,6 +7,11 @@ gen/
 default-*.json
 *.sqlite
 
+# Local secrets / service credentials (never commit)
+.env
+.env.*
+!.env.example
+
 # MTA
 mta_archives/
 *_mta_build_tmp
