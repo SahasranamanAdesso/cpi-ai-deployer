@@ -16,6 +16,7 @@ Published to **GitHub Packages** as `@david10ten/deployer`.
 - [Using it from a CAP service](#using-it-from-a-cap-service)
 - [Using it from a plain Express/Node app](#using-it-from-a-plain-expressnode-app)
 - [Using it from a CLI script](#using-it-from-a-cli-script)
+- [Sample app](#sample-app)
 - [Troubleshooting](#troubleshooting)
 - [Publishing (maintainers)](#publishing-maintainers)
 
@@ -339,6 +340,13 @@ deployer
 ```bash
 node deploy-cli.js ./MyFlow.zip MyFlow "My Flow" MyPackage
 ```
+
+## Sample app
+
+[`sample_app/`](sample_app) is a full, runnable example: a standalone CAP
+(`cds watch`-able) project with a small Fiori UI - pick an iFlow ZIP, deploy
+it, watch a status indicator update from `RUNNING` to `STARTED`/`ERROR`. See
+[sample_app/readme.md](sample_app/readme.md) for setup.
 
 ## Troubleshooting
 

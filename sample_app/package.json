@@ -1,0 +1,25 @@
+{
+  "name": "cpi-deployer-sample-app",
+  "version": "1.0.0",
+  "description": "Minimal CAP + Fiori sample app demonstrating @david10ten/deployer: pick an iFlow ZIP, deploy it to CPI, watch a status indicator.",
+  "private": true,
+  "dependencies": {
+    "@david10ten/deployer": "file:..",
+    "@sap/cds": "^9",
+    "express": "^4"
+  },
+  "devDependencies": {
+    "@sap/cds-dk": "^9"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "watch": "cds watch"
+  },
+  "cds": {
+    "requires": {
+      "auth": {
+        "kind": "dummy"
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CPI iFlow Deployer - Sample App</title>
+  <script
+    id="sap-ui-bootstrap"
+    src="https://ui5.sap.com/resources/sap-ui-core.js"
+    data-sap-ui-theme="sap_horizon"
+    data-sap-ui-resource-roots='{"cpideployer.sample": "./"}'
+    data-sap-ui-compat-version="edge"
+    data-sap-ui-async="true"
+    data-sap-ui-frame-options="trusted"
+    data-sap-ui-libs="sap.m,sap.ui.unified,sap.ui.layout"
+  ></script>
+  <script>
+    sap.ui.getCore().attachInit(function () {
+      sap.ui.require(['sap/ui/core/ComponentContainer'], function (ComponentContainer) {
+        new ComponentContainer({
+          name: 'cpideployer.sample',
+          settings: { id: 'cpideployer-sample' },
+          async: true
+        }).placeAt('content');
+      });
+    });
+  </script>
+</head>
+<body class="sapUiBody" id="content">
+</body>
+</html>

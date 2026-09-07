@@ -1,0 +1,74 @@
+<mvc:View
+  controllerName="cpideployer.sample.controller.App"
+  xmlns="sap.m"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns:u="sap.ui.unified"
+  xmlns:f="sap.ui.layout.form"
+>
+  <Shell>
+    <App>
+      <Page title="{i18n>appTitle}">
+        <content>
+          <VBox class="sapUiMediumMargin" width="auto">
+
+            <Panel headerText="{i18n>stepDetailsHeader}" class="sapUiResponsiveMargin">
+              <content>
+                <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="{i18n>artifactIdLabel}" />
+                  <Input id="artifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
+
+                  <Label text="{i18n>artifactNameLabel}" />
+                  <Input id="artifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
+
+                  <Label text="{i18n>packageIdLabel}" />
+                  <Input id="packageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+                </f:SimpleForm>
+              </content>
+            </Panel>
+
+            <Panel headerText="{i18n>stepFileHeader}" class="sapUiResponsiveMargin">
+              <content>
+                <u:FileUploader
+                  id="fileUploader"
+                  name="iflowZip"
+                  fileType="zip"
+                  placeholder="{i18n>filePickerPlaceholder}"
+                  change="onFileChange"
+                  width="100%"
+                />
+              </content>
+            </Panel>
+
+            <Panel headerText="{i18n>stepDeployHeader}" class="sapUiResponsiveMargin">
+              <content>
+                <VBox class="sapUiSmallMarginTop">
+                  <Button
+                    id="deployButton"
+                    text="{i18n>deployButtonText}"
+                    type="Emphasized"
+                    enabled="false"
+                    press="onDeployPress"
+                  />
+
+                  <HBox class="sapUiSmallMarginTop" alignItems="Center">
+                    <BusyIndicator id="statusBusy" visible="false" size="1rem" class="sapUiTinyMarginEnd" />
+                    <ObjectStatus id="statusText" text="{i18n>statusInitial}" state="None" />
+                  </HBox>
+
+                  <MessageStrip
+                    id="errorStrip"
+                    visible="false"
+                    type="Error"
+                    showIcon="true"
+                    class="sapUiSmallMarginTop"
+                  />
+                </VBox>
+              </content>
+            </Panel>
+
+          </VBox>
+        </content>
+      </Page>
+    </App>
+  </Shell>
+</mvc:View>
