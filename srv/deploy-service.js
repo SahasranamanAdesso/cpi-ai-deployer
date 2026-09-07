@@ -1,5 +1,7 @@
 const cds = require('@sap/cds');
-const { deployZipToCpi } = require('./cpi-deploy-service');
+const { CpiDeployer } = require('@david10ten/deployer');
+
+const deployer = new CpiDeployer({ instanceName: 'cpi-ai-platform-api', serviceLabel: 'it-rt' });
 
 module.exports = cds.service.impl(async function () {
   this.on('deployIflow', async (req) => {
@@ -10,7 +12,7 @@ module.exports = cds.service.impl(async function () {
     }
 
     try {
-      const result = await deployZipToCpi({ id, name, packageId, zipBase64 });
+      const result = await deployer.deployZip({ id, name, packageId, zipBase64 });
 
       if (result.status === 'ERROR') {
         return req.error(500, `CPI deployment failed for artifact '${id}'.`);

@@ -1,0 +1,31 @@
+{
+  "name": "@david10ten/deployer",
+  "version": "1.0.0",
+  "description": "Deploy SAP Integration Suite (CPI) iFlow artifacts via the Integration Runtime API, from any Node.js application.",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "sap",
+    "cpi",
+    "integration-suite",
+    "iflow",
+    "deploy"
+  ],
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/david10ten/cpi-ai-deployer-package.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "axios": "^1.19.0"
+  }
+}

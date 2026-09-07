@@ -4,6 +4,7 @@
   "dependencies": {
     "@cap-js/hana": "^2",
     "@cpi-ai/compiler": "github:SahasranamanAdesso/cpi-ai-compiler#main",
+    "@david10ten/deployer": "file:packages/deployer",
     "@sap/cds": "^9",
     "@sap/xssec": "^4",
     "axios": "^1.19.0",
@@ -44,6 +45,7 @@
     }
   },
   "workspaces": [
-    "app/*"
+    "app/*",
+    "packages/*"
   ]
 }
