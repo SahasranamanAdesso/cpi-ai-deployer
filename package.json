@@ -1,51 +1,31 @@
 {
-  "name": "cpi-ai-platform",
+  "name": "@david10ten/deployer",
   "version": "1.0.0",
+  "description": "Deploy SAP Integration Suite (CPI) iFlow artifacts via the Integration Runtime API, from any Node.js application.",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "sap",
+    "cpi",
+    "integration-suite",
+    "iflow",
+    "deploy"
+  ],
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SahasranamanAdesso/cpi-ai-deployer.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "dependencies": {
-    "@cap-js/hana": "^2",
-    "@cpi-ai/compiler": "github:SahasranamanAdesso/cpi-ai-compiler#main",
-    "@david10ten/deployer": "file:packages/deployer",
-    "@sap/cds": "^9",
-    "@sap/xssec": "^4",
-    "axios": "^1.19.0",
-    "sap-integration-sdk": "github:SahasranamanAdesso/cpi-ai-compiler#main"
-  },
-  "devDependencies": {
-    "@cap-js/sqlite": "^2.4",
-    "@sap/cds-dk": "^9",
-    "cds-plugin-ui5": "^0.17.0",
-    "mbt": "^1.2.49",
-    "rimraf": "^5.0.5"
-  },
-  "scripts": {
-    "start": "cds-serve",
-    "watch-iflowstudio": "cds watch --open iflowstudio/index.html?sap-ui-xx-viewCache=false --livereload false",
-    "undeploy": "cf undeploy cpi-ai-platform --delete-services --delete-service-keys --delete-service-brokers",
-    "build": "rimraf resources mta_archives && mbt build --mtar archive",
-    "deploy": "cf deploy mta_archives/archive.mtar --retries 1"
-  },
-  "private": true,
-  "cds": {
-    "requires": {
-      "[production]": {
-        "auth": "xsuaa"
-      },
-      "connectivity": true,
-      "destinations": true,
-      "auth": {
-        "users": {
-          "deployer": {
-            "password": "deployer",
-            "roles": [
-              "DeployIFlow"
-            ]
-          }
-        }
-      }
-    }
-  },
-  "workspaces": [
-    "app/*",
-    "packages/*"
-  ]
+    "axios": "^1.19.0"
+  }
 }

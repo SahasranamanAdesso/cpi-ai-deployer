@@ -1,24 +1,9 @@
 node_modules/
-target/
-_out/
-gen/
 
-.cdsrc-private.json
-default-*.json
-*.sqlite
-
-# Local secrets / service credentials (never commit)
+# Local secrets - never commit
 .env
 .env.*
 !.env.example
 
-# MTA
-mta_archives/
-*_mta_build_tmp
-*.mtar
-
-# Other
+*.tgz
 .DS_Store
-
-# @cap-js/cds-typer
-@cds-models

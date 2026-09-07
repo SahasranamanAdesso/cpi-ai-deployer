@@ -1,1 +1,0 @@
-using CPIService as service from '../../srv/cpiplatform-service';

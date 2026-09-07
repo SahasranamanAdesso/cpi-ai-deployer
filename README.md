@@ -4,8 +4,8 @@ Deploy SAP Integration Suite (CPI) iFlow artifacts via the Integration Runtime
 (`it-rt`) OData API, from **any** Node.js application. No dependency on CAP,
 Cloud Foundry, or any particular framework - just Node + `axios`.
 
-Published to **GitHub Packages** at
-[github.com/david10ten/cpi-ai-deployer-package](https://github.com/david10ten/cpi-ai-deployer-package).
+Source: [github.com/SahasranamanAdesso/cpi-ai-deployer](https://github.com/SahasranamanAdesso/cpi-ai-deployer).
+Published to **GitHub Packages** as `@david10ten/deployer`.
 
 - [Install](#install)
 - [Quickstart](#quickstart)
@@ -48,17 +48,6 @@ GitHub token that has at least `read:packages`.
    ```bash
    npm install @david10ten/deployer
    ```
-
-Within this monorepo it's installed as a local workspace instead - no
-registry/token needed:
-
-```json
-{
-  "dependencies": {
-    "@david10ten/deployer": "file:packages/deployer"
-  }
-}
-```
 
 ## Quickstart
 
@@ -375,10 +364,9 @@ node deploy-cli.js ./MyFlow.zip MyFlow "My Flow" MyPackage
 ## Publishing (maintainers)
 
 Requires a GitHub PAT with `write:packages` scope, and write/admin access to
-[david10ten/cpi-ai-deployer-package](https://github.com/david10ten/cpi-ai-deployer-package).
+the package's registry namespace under the `david10ten` account.
 
 ```bash
-cd packages/deployer
 npm publish --registry=https://npm.pkg.github.com
 ```
 
