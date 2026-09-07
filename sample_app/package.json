@@ -13,7 +13,7 @@
   },
   "scripts": {
     "start": "cds-serve",
-    "watch": "cds watch"
+    "watch": "NODE_PATH= cds watch"
   },
   "cds": {
     "requires": {

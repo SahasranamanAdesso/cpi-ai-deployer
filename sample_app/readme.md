@@ -36,11 +36,15 @@ the `@david10ten/deployer` package.
 cd sample_app
 npm install
 cp .env.example .env   # fill in CPI_CLIENT_ID / CPI_CLIENT_SECRET / CPI_TOKEN_URL / CPI_API_BASE_URL
-cds watch
+npm run watch
 ```
 
 Then open the URL `cds watch` prints (typically
 <http://localhost:4004/deployer/webapp/index.html>).
+
+`npm run watch` runs `cds watch` with `NODE_PATH` cleared - see below for why
+that matters. If you prefer to run `cds watch` directly, read the next
+section first.
 
 Credentials are resolved the same way `CpiDeployer` always resolves them -
 see the [main README](../README.md#credential-resolution). Locally (via
@@ -48,9 +52,10 @@ see the [main README](../README.md#credential-resolution). Locally (via
 Foundry, bind a `cpi-ai-platform-api` (`it-rt`, plan `api`) service instance
 instead and no `.env` is needed.
 
-### If `cds watch` hangs with no "server listening" line
+### If plain `cds watch` hangs with no "server listening" line
 
-If you see a warning like:
+If you run `cds watch` directly (instead of `npm run watch`) and see a
+warning like:
 
 ```
 ERROR: @sap/cds was loaded from different locations:
@@ -58,10 +63,11 @@ ERROR: @sap/cds was loaded from different locations:
   .../some-global-install/node_modules/@sap/cds
 ```
 
-...and the server never logs `server listening on {...}`, a globally
-installed `@sap/cds`/`@sap/cds-dk` (e.g. via `NODE_PATH`) is conflicting with
-the one in `sample_app/node_modules`. Run with `NODE_PATH` cleared for this
-process:
+...and the server never logs `server listening on {...}` - it just repeats
+the warning and stalls - a globally installed `@sap/cds`/`@sap/cds-dk` (found
+via `NODE_PATH`) is conflicting with the one in `sample_app/node_modules`,
+and CAP silently refuses to start the HTTP listener. `npm run watch` already
+works around this by clearing `NODE_PATH`; to do it yourself:
 
 ```bash
 NODE_PATH= cds watch
