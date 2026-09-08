@@ -1,4 +1,4 @@
-# @david10ten/deployer
+# CPI Deployer Package for CPI AI Compiler
 
 Deploy SAP Integration Suite (CPI) iFlow artifacts via the Integration Runtime
 (`it-rt`) OData API, from **any** Node.js application. No dependency on CAP,
