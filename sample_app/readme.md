@@ -42,6 +42,13 @@ npm run watch
 Then open the URL `cds watch` prints (typically
 <http://localhost:4004/deployer/webapp/index.html>).
 
+A ready-to-use test artifact is included at
+[`sample-iflow.zip`](sample-iflow.zip) - a minimal HTTPS-to-HTTP iFlow you
+can pick in step 2 to try the flow end to end without building your own ZIP
+first. The **Package ID** you enter in step 1 must be the *technical name*
+of an existing Integration Package on your tenant (found under Design in
+Integration Suite) - not its display name.
+
 `npm run watch` runs `cds watch` with `NODE_PATH` cleared - see below for why
 that matters. If you prefer to run `cds watch` directly, read the next
 section first.
