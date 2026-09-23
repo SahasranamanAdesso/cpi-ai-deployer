@@ -66,6 +66,48 @@
               </content>
             </Panel>
 
+            <Panel headerText="{i18n>stepErrorsHeader}" class="sapUiResponsiveMargin">
+              <content>
+                <VBox class="sapUiSmallMarginTop">
+                  <Button
+                    id="checkErrorsButton"
+                    text="{i18n>checkErrorsButtonText}"
+                    press="onCheckErrorsPress"
+                  />
+
+                  <Table
+                    id="errorTable"
+                    class="sapUiSmallMarginTop"
+                    items="{errors>/artifacts}"
+                    noDataText="{i18n>noErrorArtifacts}"
+                  >
+                    <columns>
+                      <Column><Text text="{i18n>colArtifactId}" /></Column>
+                      <Column><Text text="{i18n>colDeployedOn}" /></Column>
+                      <Column></Column>
+                    </columns>
+                    <items>
+                      <ColumnListItem>
+                        <cells>
+                          <Text text="{errors>Id}" />
+                          <Text text="{errors>DeployedOn}" />
+                          <Button text="{i18n>viewErrorButtonText}" press="onViewErrorPress" />
+                        </cells>
+                      </ColumnListItem>
+                    </items>
+                  </Table>
+
+                  <MessageStrip
+                    id="errorDetailStrip"
+                    visible="false"
+                    type="Error"
+                    showIcon="true"
+                    class="sapUiSmallMarginTop"
+                  />
+                </VBox>
+              </content>
+            </Panel>
+
           </VBox>
         </content>
       </Page>

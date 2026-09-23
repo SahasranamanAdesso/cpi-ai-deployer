@@ -1,7 +1,8 @@
 sap.ui.define([
   'sap/ui/core/mvc/Controller',
+  'sap/ui/model/json/JSONModel',
   'sap/m/MessageToast'
-], function (Controller, MessageToast) {
+], function (Controller, JSONModel, MessageToast) {
   'use strict';
 
   const STATUS_STATE = {
@@ -21,6 +22,7 @@ sap.ui.define([
       this._zipBase64 = null;
       this._pollHandle = null;
       this._i18n = this.getView().getModel('i18n').getResourceBundle();
+      this.getView().setModel(new JSONModel({ artifacts: [] }), 'errors');
     },
 
     onFileChange: function (event) {
@@ -136,6 +138,62 @@ sap.ui.define([
 
     _hideError: function () {
       this.byId('errorStrip').setVisible(false);
+    },
+
+    onCheckErrorsPress: async function () {
+      this._hideErrorDetail();
+
+      try {
+        const response = await fetch(`${SERVICE_URL}/listErrorArtifacts()`);
+        const body = await response.json();
+
+        if (!response.ok) {
+          throw new Error((body.error && body.error.message) || 'Could not list error artifacts.');
+        }
+
+        const artifacts = body.value || [];
+        this.getView().getModel('errors').setProperty('/artifacts', artifacts);
+
+        if (!artifacts.length) {
+          MessageToast.show(this._i18n.getText('noErrorArtifacts'));
+        }
+      } catch (err) {
+        MessageToast.show(err.message);
+      }
+    },
+
+    onViewErrorPress: async function (event) {
+      const context = event.getSource().getBindingContext('errors');
+      const id = context.getProperty('Id');
+
+      this._hideErrorDetail();
+
+      try {
+        const response = await fetch(`${SERVICE_URL}/getArtifactError(id='${encodeURIComponent(id)}')`);
+        const body = await response.json();
+
+        if (!response.ok) {
+          throw new Error((body.error && body.error.message) || `Could not fetch error detail for '${id}'.`);
+        }
+
+        this._showErrorDetail(
+          body.detail === null
+            ? this._i18n.getText('errorDetailEmpty', [id])
+            : `${id}:\n${body.detail}`
+        );
+      } catch (err) {
+        this._showErrorDetail(err.message);
+      }
+    },
+
+    _showErrorDetail: function (text) {
+      const strip = this.byId('errorDetailStrip');
+      strip.setText(text);
+      strip.setVisible(true);
+    },
+
+    _hideErrorDetail: function () {
+      this.byId('errorDetailStrip').setVisible(false);
     }
 
   });

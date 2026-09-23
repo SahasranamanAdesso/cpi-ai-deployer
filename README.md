@@ -385,7 +385,10 @@ node deploy-cli.js ./MyFlow.zip MyFlow "My Flow" MyPackage
 
 [`sample_app/`](sample_app) is a full, runnable example: a standalone CAP
 (`cds watch`-able) project with a small Fiori UI - pick an iFlow ZIP, deploy
-it, watch a status indicator update from `RUNNING` to `STARTED`/`ERROR`. See
+it, watch a status indicator update from `RUNNING` to `STARTED`/`ERROR`, then
+check for and inspect any flows currently in `ERROR` status using
+`listArtifacts`/`getArtifactError`. It installs `@david10ten/deployer` from
+GitHub Packages like any real consumer would, not from local source. See
 [sample_app/readme.md](sample_app/readme.md) for setup.
 
 ## Troubleshooting

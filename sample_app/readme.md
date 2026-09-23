@@ -12,19 +12,26 @@ the package's API in context, not to be a production deployment tool.
 
 ## What it does
 
-- **`srv/deploy-service.cds` + `.js`** (`/deploy`) - a CAP service with two
-  operations, wrapping `@david10ten/deployer`:
+- **`srv/deploy-service.cds` + `.js`** (`/deploy`) - a CAP service wrapping
+  `@david10ten/deployer` (installed from GitHub Packages, not local source -
+  see [Where the package comes from](#where-the-package-comes-from)):
   - `deployIflow(id, name, packageId, zipBase64)` - kicks off
     `deployer.deployZip(...)` in the background and returns a `jobId`
     immediately (deployment + status polling can take a while, so this
     doesn't block the OData request).
   - `deploymentStatus(jobId)` - the UI polls this to update the status
     indicator, returning `RUNNING` / `STARTED` / `ERROR` / `TIMEOUT` / `FAILED`.
+  - `listErrorArtifacts()` - wraps `deployer.listArtifacts({ status: 'ERROR' })`.
+    Answers "which flows are currently broken?"
+  - `getArtifactError(id)` - wraps `deployer.getArtifactError(id)`. Answers
+    "why is *this* flow broken?"
 - **`app/deployer/webapp/`** - a small freestyle UI5 app with:
   - a form for Artifact ID / name / Package ID,
   - a file picker for the iFlow `.zip`,
   - a "Deploy to CPI" button,
-  - a status indicator (busy spinner + colored `ObjectStatus`).
+  - a status indicator (busy spinner + colored `ObjectStatus`),
+  - a "Check for errors" panel: lists artifacts in `ERROR` status, and lets
+    you view the error detail for any of them.
 
 The whole point: the UI never talks to CPI directly, and the CAP service
 never implements any CPI-specific HTTP calls itself - all of that lives in
@@ -80,6 +87,29 @@ works around this by clearing `NODE_PATH`; to do it yourself:
 NODE_PATH= cds watch
 ```
 
+## Where the package comes from
+
+This app installs `@david10ten/deployer` from **GitHub Packages** - the same
+way any real consumer would - not from the local `src/` in this repo. Its
+`package.json` depends on `"@david10ten/deployer": "^1.1.0"` (a version
+range, not `file:..`), and `.npmrc` points the `@david10ten` scope at
+`npm.pkg.github.com`:
+
+```
+@david10ten:registry=https://npm.pkg.github.com
+```
+
+`npm install` needs a `//npm.pkg.github.com/:_authToken=...` entry (in
+`~/.npmrc`, or a `GITHUB_TOKEN` env var referenced from it) with
+`read:packages` scope - see the [main README's install
+instructions](../README.md#install). After installing, you can confirm it's
+a real registry copy rather than a symlink to local source:
+
+```bash
+readlink -f node_modules/@david10ten/deployer   # should NOT point into ../.. /src
+cat node_modules/@david10ten/deployer/package.json | grep version
+```
+
 ## Where the package is actually used
 
 ```js
@@ -93,8 +123,17 @@ module.exports = cds.service.impl(async function () {
     const { id, name, packageId, zipBase64 } = req.data;
     // ... deployer.deployZip({ id, name, packageId, zipBase64 }) ...
   });
+
+  this.on('listErrorArtifacts', async () => {
+    return deployer.listArtifacts({ status: 'ERROR' });
+  });
+
+  this.on('getArtifactError', async (req) => {
+    const detail = await deployer.getArtifactError(req.data.id);
+    return { id: req.data.id, detail: detail && JSON.stringify(detail, null, 2) };
+  });
 });
 ```
 
 That's the entire integration surface - two lines to import and construct
-the client, one call to run the full create/update -> deploy -> poll flow.
+the client, one call per operation.

@@ -4,7 +4,7 @@
   "description": "Minimal CAP + Fiori sample app demonstrating @david10ten/deployer: pick an iFlow ZIP, deploy it to CPI, watch a status indicator.",
   "private": true,
   "dependencies": {
-    "@david10ten/deployer": "file:..",
+    "@david10ten/deployer": "^1.1.0",
     "@sap/cds": "^9",
     "express": "^4"
   },

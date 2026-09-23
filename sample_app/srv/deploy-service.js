@@ -42,4 +42,21 @@ module.exports = cds.service.impl(async function () {
 
     return { jobId, ...job };
   });
+
+  // Demonstrates CpiDeployer.listArtifacts() / getArtifactError() - "which
+  // flows are broken, and why?" - as opposed to deployIflow's "deploy this one".
+  this.on('listErrorArtifacts', async () => {
+    return deployer.listArtifacts({ status: 'ERROR' });
+  });
+
+  this.on('getArtifactError', async (req) => {
+    const { id } = req.data;
+    if (!id) return req.error(400, 'id is required.');
+
+    const detail = await deployer.getArtifactError(id);
+    return {
+      id,
+      detail: detail === null ? null : JSON.stringify(detail, null, 2)
+    };
+  });
 });
