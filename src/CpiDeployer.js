@@ -202,6 +202,58 @@ class CpiDeployer {
   }
 
   /**
+   * List runtime artifacts, optionally filtered by status.
+   *
+   * @param {object} [params]
+   * @param {string} [params.status] e.g. 'ERROR', 'STARTED'. Omit to list every artifact.
+   * @returns {Promise<Array<object>>} Artifact objects (`Id`, `Name`, `Status`, `DeployedBy`, `DeployedOn`, ...).
+   */
+  async listArtifacts({ status } = {}) {
+    const { apiBaseUrl } = this.getCredentials();
+    const accessToken = await this.getAccessToken();
+
+    let url = `${apiBaseUrl}/api/v1/IntegrationRuntimeArtifacts`;
+    if (status) {
+      url += `?$filter=${encodeURIComponent(`Status eq '${status}'`)}`;
+    }
+
+    const response = await axios.get(url, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' }
+    });
+
+    const body = response.data;
+    if (Array.isArray(body.value)) return body.value; // OData v4 shape
+    if (body.d && Array.isArray(body.d.results)) return body.d.results; // OData v2 shape
+    return [];
+  }
+
+  /**
+   * Get the structured deployment-error detail for one artifact.
+   *
+   * Some tenants return an empty body here even when the artifact is
+   * genuinely in ERROR status - in that case this resolves `null`, and
+   * callers should fall back to `MessageProcessingLogs` instead.
+   *
+   * @param {string} id Artifact ID.
+   * @returns {Promise<object|null>} Parsed error detail, or `null` if the tenant returned an empty response.
+   */
+  async getArtifactError(id) {
+    if (!id) throw new Error('getArtifactError requires an artifact id.');
+
+    const { apiBaseUrl } = this.getCredentials();
+    const accessToken = await this.getAccessToken();
+
+    const response = await axios.get(
+      `${apiBaseUrl}/api/v1/IntegrationRuntimeArtifacts('${encodeURIComponent(id)}')/ErrorInformation/$value`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } }
+    );
+
+    const body = response.data;
+    if (!body || (typeof body === 'string' && body.trim() === '')) return null;
+    return body;
+  }
+
+  /**
    * Convenience end-to-end flow: create/update the artifact from a ZIP,
    * deploy it, then poll until it reaches a terminal runtime status.
    *

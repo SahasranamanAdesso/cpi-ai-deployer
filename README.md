@@ -217,6 +217,46 @@ const { status, raw } = await deployer.pollDeploymentStatus('MyFlow', {
 // status: 'STARTED' | 'ERROR' | 'TIMEOUT'
 ```
 
+### `deployer.listArtifacts(options?)`
+
+Lists runtime artifacts, optionally filtered by status. Answers "which flows
+are broken right now?" when called with `status: 'ERROR'`.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `status` | `string` | - | e.g. `'ERROR'`, `'STARTED'`. Omit to list every artifact. |
+
+```js
+const errored = await deployer.listArtifacts({ status: 'ERROR' });
+// => [{ Id: 'MyFlow', Name: 'MyFlow', Status: 'ERROR', DeployedBy: '...', DeployedOn: '...' }, ...]
+```
+
+### `deployer.getArtifactError(id)`
+
+Gets the structured deployment-error detail for one artifact. Answers "why is
+*this* flow broken?"
+
+```js
+const detail = await deployer.getArtifactError('MyFlow');
+// => { message: { subsystemName, subsytemPartName, messageId, messageText }, parameter: [...] }
+```
+
+Some tenants return an empty body here even when the artifact is genuinely in
+`ERROR` status - in that case this resolves `null`. Fall back to the
+tenant's `MessageProcessingLogs` API for message-level errors instead:
+
+```js
+if ((await deployer.getArtifactError(id)) === null) {
+  // GET {apiBaseUrl}/api/v1/MessageProcessingLogs?$filter=Status eq 'FAILED' and IntegrationFlowName eq '{name}'&$orderby=LogEnd desc&$top=1
+  // then GET {apiBaseUrl}/api/v1/MessageProcessingLogs('{MessageGuid}')/ErrorInformation/$value
+}
+```
+
+Typical usage: call `listArtifacts({ status: 'ERROR' })` first, then loop
+over the results calling `getArtifactError(artifact.Id)` for each one - this
+reproduces what the Integration Suite Monitor UI shows when filtered to
+`status=ERROR` and you click into one artifact, but programmatically.
+
 ### `deployer.deployZip({ id, name, packageId, zipBase64 }, pollOptions?)`
 
 The convenience method most callers want: runs `createOrUpdateArtifact` ->

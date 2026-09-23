@@ -39,6 +39,22 @@ export interface DeploymentStatusResult {
   raw?: unknown;
 }
 
+export interface RuntimeArtifact {
+  Id: string;
+  Version?: string;
+  Name: string;
+  Type?: string;
+  DeployedBy?: string;
+  DeployedOn?: string;
+  Status: string;
+  [key: string]: unknown;
+}
+
+export interface ListArtifactsOptions {
+  /** e.g. 'ERROR', 'STARTED'. Omit to list every artifact. */
+  status?: string;
+}
+
 export class CpiDeployer {
   constructor(options?: CpiDeployerOptions);
   getCredentials(): CpiCredentials;
@@ -46,6 +62,8 @@ export class CpiDeployer {
   createOrUpdateArtifact(params: ArtifactParams): Promise<CreateOrUpdateResult>;
   deployArtifact(id: string, version?: string): Promise<unknown>;
   pollDeploymentStatus(id: string, options?: PollOptions): Promise<DeploymentStatusResult>;
+  listArtifacts(options?: ListArtifactsOptions): Promise<RuntimeArtifact[]>;
+  getArtifactError(id: string): Promise<unknown | null>;
   deployZip(params: ArtifactParams, pollOptions?: PollOptions): Promise<DeploymentStatusResult>;
 }
 
