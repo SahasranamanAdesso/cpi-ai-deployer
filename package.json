@@ -1,6 +1,6 @@
 {
   "name": "@david10ten/deployer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Deploy SAP Integration Suite (CPI) iFlow artifacts via the Integration Runtime API, from any Node.js application.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
