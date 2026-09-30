@@ -1,60 +1,91 @@
 # CPI Deployer Sample App
 
 A minimal **CAP** (Cloud Application Programming) + **Fiori (SAPUI5)** app
-demonstrating how to use [`@david10ten/deployer`](../README.md) from a real
-application: pick an iFlow ZIP, deploy it to a CPI tenant, and watch a live
-status indicator.
+demonstrating [`@david10ten/deployer`](../README.md) together with
+[`@cpi-ai/compiler`](https://github.com/SahasranamanAdesso/cpi-ai-compiler):
+describe an Integration Flow in natural language, have the AI generate and
+deploy it to a CPI tenant, and - if SAP rejects the deployment - click
+**Fix & Redeploy** to feed SAP's own error detail back into the AI and try
+again, watching per-attempt status the whole way.
 
 This is a standalone CAP project (its own `package.json`, `srv/`, `app/`) so
 it runs with the standard `cds watch` workflow, just like any other CAP app.
 It's deliberately small - one service, one view, one controller - to show
-the package's API in context, not to be a production deployment tool.
+both packages' APIs in context, not to be a production deployment tool.
 
 ## What it does
 
-- **`srv/deploy-service.cds` + `.js`** (`/deploy`) - a CAP service wrapping
-  `@david10ten/deployer` (installed from GitHub Packages, not local source -
-  see [Where the package comes from](#where-the-package-comes-from)):
-  - `deployIflow(id, name, packageId, zipBase64)` - kicks off
-    `deployer.deployZip(...)` in the background and returns a `jobId`
-    immediately (deployment + status polling can take a while, so this
-    doesn't block the OData request).
-  - `deploymentStatus(jobId)` - the UI polls this to update the status
-    indicator, returning `RUNNING` / `STARTED` / `ERROR` / `TIMEOUT` / `FAILED`.
+- **`srv/deploy-service.cds` + `.js`** (`/deploy`) - a CAP service composing
+  `@cpi-ai/compiler`'s `DeploymentOrchestrator` with `@david10ten/deployer`'s
+  `CpiDeployer` (both installed as real packages, not local source - see
+  [Where the packages come from](#where-the-packages-come-from)):
+  - `generateAndDeploy(id, name, packageId, description)` - builds an
+    `IntegrationFlowGenerator` + `DeploymentOrchestrator`, kicks off
+    `orchestrator.runAttempt(description, ...)` in the background (AI
+    generation, compile, package, deploy, poll can all take a while, so this
+    doesn't block the OData request), and returns a `jobId` immediately.
+  - `fixAndRedeploy(jobId)` - looks up the job's last failed attempt, calls
+    `orchestrator.buildNextRequest(...)` to compose feedback from SAP's own
+    error detail, runs one more attempt in the background, and returns the
+    same `jobId`.
+  - `jobStatus(jobId)` - the UI polls this to update the status indicator and
+    attempt-history table, returning `RUNNING` / `STARTED` / `ERROR` /
+    `TIMEOUT` / `GENERATION_FAILED` / `FAILED`, plus `canRetry` and a JSON
+    summary of every attempt so far.
   - `listErrorArtifacts()` - wraps `deployer.listArtifacts({ status: 'ERROR' })`.
-    Answers "which flows are currently broken?"
+    Answers "which flows are currently broken?" (independent of the job flow
+    above - useful for browsing the whole tenant).
   - `getArtifactError(id)` - wraps `deployer.getArtifactError(id)`. Answers
     "why is *this* flow broken?"
 - **`app/deployer/webapp/`** - a small freestyle UI5 app with:
   - a form for Artifact ID / name / Package ID,
-  - a file picker for the iFlow `.zip`,
-  - a "Deploy to CPI" button,
-  - a status indicator (busy spinner + colored `ObjectStatus`),
+  - a text area to describe the flow in natural language,
+  - a "Generate & Deploy" button, a status indicator (busy spinner + colored
+    `ObjectStatus`), and an attempt-history table showing every generate/deploy
+    attempt for the current job,
+  - a "Fix & Redeploy" button that appears whenever the latest attempt failed
+    and the per-job attempt cap hasn't been reached,
   - a "Check for errors" panel: lists artifacts in `ERROR` status, and lets
     you view the error detail for any of them.
 
-The whole point: the UI never talks to CPI directly, and the CAP service
-never implements any CPI-specific HTTP calls itself - all of that lives in
-the `@david10ten/deployer` package.
+The whole point: the UI never talks to CPI or the AI provider directly, and
+the CAP service never implements any CPI-specific HTTP calls or prompt
+building itself - all of that lives in `@david10ten/deployer` and
+`@cpi-ai/compiler` respectively.
 
 ## Run it
 
 ```bash
 cd sample_app
 npm install
-cp .env.example .env   # fill in CPI_CLIENT_ID / CPI_CLIENT_SECRET / CPI_TOKEN_URL / CPI_API_BASE_URL
+cp .env.example .env   # fill in CPI_CLIENT_ID / CPI_CLIENT_SECRET / CPI_TOKEN_URL / CPI_API_BASE_URL, plus an AI provider
 npm run watch
 ```
+
+You need exactly one AI provider configured in `.env` - the backend checks
+`AI_HUB_API_KEY` first and falls back to `ANTHROPIC_API_KEY` if it's unset:
+
+- **adesso AI Hub** (preferred) - set `AI_HUB_API_KEY`. Uses
+  `@cpi-ai/compiler`'s `AdessoAIHubProvider` against an OpenAI-compatible
+  `/v1/chat/completions` endpoint; `AI_HUB_API_URL`/`AI_HUB_MODEL` are
+  optional overrides (defaults: `https://adesso-ai-hub.3asabc.de/v1/chat/completions`,
+  `deepseek-v4-flash-sovereign`).
+- **Anthropic direct** - set `ANTHROPIC_API_KEY` to a **direct** key from
+  [console.anthropic.com](https://console.anthropic.com). A Claude Code
+  session key will not work, since `ClaudeProvider` calls
+  `api.anthropic.com` directly rather than going through any proxy.
 
 Then open the URL `cds watch` prints (typically
 <http://localhost:4004/deployer/webapp/index.html>).
 
-A ready-to-use test artifact is included at
-[`sample-iflow.zip`](sample-iflow.zip) - a minimal HTTPS-to-HTTP iFlow you
-can pick in step 2 to try the flow end to end without building your own ZIP
-first. The **Package ID** you enter in step 1 must be the *technical name*
-of an existing Integration Package on your tenant (found under Design in
-Integration Suite) - not its display name.
+Fill in an Artifact ID / name / Package ID, describe the flow you want (e.g.
+*"Receive HTTPS requests and set the message body to 'Hello from AI-powered
+Integration Suite!'"*), and click **Generate & Deploy**. The **Package ID**
+must be the *technical name* of an existing Integration Package on your
+tenant (found under Design in Integration Suite) - not its display name. If
+SAP rejects the deployment, its error appears in the attempt-history table
+and a **Fix & Redeploy** button appears - click it to have the AI regenerate
+a corrected flow using that error as feedback, up to 5 attempts per job.
 
 `npm run watch` runs `cds watch` with `NODE_PATH` cleared - see below for why
 that matters. If you prefer to run `cds watch` directly, read the next
@@ -64,7 +95,8 @@ Credentials are resolved the same way `CpiDeployer` always resolves them -
 see the [main README](../README.md#credential-resolution). Locally (via
 `cds watch`), it falls back to the `CPI_*` env vars in `.env`; on Cloud
 Foundry, bind a `cpi-ai-platform-api` (`it-rt`, plan `api`) service instance
-instead and no `.env` is needed.
+instead and no `.env` is needed for those. `ANTHROPIC_API_KEY` always comes
+from the environment/`.env` regardless of platform.
 
 ### If plain `cds watch` hangs with no "server listening" line
 
@@ -87,41 +119,65 @@ works around this by clearing `NODE_PATH`; to do it yourself:
 NODE_PATH= cds watch
 ```
 
-## Where the package comes from
+## Where the packages come from
 
-This app installs `@david10ten/deployer` from **GitHub Packages** - the same
-way any real consumer would - not from the local `src/` in this repo. Its
-`package.json` depends on `"@david10ten/deployer": "^1.1.0"` (a version
-range, not `file:..`), and `.npmrc` points the `@david10ten` scope at
-`npm.pkg.github.com`:
+This app installs both packages as real dependencies, never as relative
+source imports:
 
-```
-@david10ten:registry=https://npm.pkg.github.com
-```
+- **`@david10ten/deployer`** from **GitHub Packages**, the same way any real
+  consumer would. `.npmrc` points the `@david10ten` scope at
+  `npm.pkg.github.com`:
 
-`npm install` needs a `//npm.pkg.github.com/:_authToken=...` entry (in
-`~/.npmrc`, or a `GITHUB_TOKEN` env var referenced from it) with
-`read:packages` scope - see the [main README's install
-instructions](../README.md#install). After installing, you can confirm it's
-a real registry copy rather than a symlink to local source:
+  ```
+  @david10ten:registry=https://npm.pkg.github.com
+  ```
+
+  `npm install` needs a `//npm.pkg.github.com/:_authToken=...` entry (in
+  `~/.npmrc`, or a `GITHUB_TOKEN` env var referenced from it) with
+  `read:packages` scope - see the [main README's install
+  instructions](../README.md#install).
+
+- **`@cpi-ai/compiler`** from a packed tarball at `../vendor/cpi-ai-compiler-*.tgz`
+  (built via `cd cpi-ai-compiler/packages/compiler && npm run build && npm pack`),
+  referenced in `package.json` as `"@cpi-ai/compiler": "file:../vendor/cpi-ai-compiler-1.0.0.tgz"`.
+  `cpi-ai-compiler` isn't published to any registry, so a local tarball is the
+  closest equivalent to a real install without one - `npm install` extracts it
+  into `node_modules/@cpi-ai/compiler` exactly like a registry package.
+
+After installing, you can confirm both are real installed copies rather than
+symlinks to local source:
 
 ```bash
 readlink -f node_modules/@david10ten/deployer   # should NOT point into ../.. /src
-cat node_modules/@david10ten/deployer/package.json | grep version
+readlink -f node_modules/@cpi-ai/compiler       # should NOT point into ../.. /src
 ```
 
-## Where the package is actually used
+## Where the packages are actually used
 
 ```js
 // srv/deploy-service.js
 const { CpiDeployer } = require('@david10ten/deployer');
+const { DeploymentOrchestrator, IntegrationFlowGenerator, AIPipeline, ClaudeProvider, AdessoAIHubProvider } = require('@cpi-ai/compiler');
 
 const deployer = new CpiDeployer(); // reads CPI_* env vars, or VCAP_SERVICES on CF
 
+function buildAiProvider() {
+  if (process.env.AI_HUB_API_KEY) {
+    return new AdessoAIHubProvider(process.env.AI_HUB_API_KEY, process.env.AI_HUB_API_URL, process.env.AI_HUB_MODEL);
+  }
+  return new ClaudeProvider(process.env.ANTHROPIC_API_KEY);
+}
+
 module.exports = cds.service.impl(async function () {
-  this.on('deployIflow', async (req) => {
-    const { id, name, packageId, zipBase64 } = req.data;
-    // ... deployer.deployZip({ id, name, packageId, zipBase64 }) ...
+  this.on('generateAndDeploy', async (req) => {
+    const { id, name, packageId, description } = req.data;
+    const generator = new IntegrationFlowGenerator(new AIPipeline(buildAiProvider()));
+    const orchestrator = new DeploymentOrchestrator(generator, deployer, { id, name, packageId });
+    // ... orchestrator.runAttempt(description, outputPath) ...
+  });
+
+  this.on('fixAndRedeploy', async (req) => {
+    // ... orchestrator.buildNextRequest(originalRequest, lastAttempt), then runAttempt again ...
   });
 
   this.on('listErrorArtifacts', async () => {
@@ -135,5 +191,5 @@ module.exports = cds.service.impl(async function () {
 });
 ```
 
-That's the entire integration surface - two lines to import and construct
-the client, one call per operation.
+That's the entire integration surface - a handful of lines to import and
+compose the two clients, one call per operation.

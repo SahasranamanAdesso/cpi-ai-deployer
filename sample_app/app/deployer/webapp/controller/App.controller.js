@@ -10,6 +10,7 @@ sap.ui.define([
     STARTED: 'Success',
     ERROR: 'Error',
     TIMEOUT: 'Warning',
+    GENERATION_FAILED: 'Error',
     FAILED: 'Error'
   };
 
@@ -19,52 +20,41 @@ sap.ui.define([
   return Controller.extend('cpideployer.sample.controller.App', {
 
     onInit: function () {
-      this._zipBase64 = null;
+      this._currentJobId = null;
       this._pollHandle = null;
       this._i18n = this.getView().getModel('i18n').getResourceBundle();
       this.getView().setModel(new JSONModel({ artifacts: [] }), 'errors');
+      this.getView().setModel(new JSONModel({ list: [] }), 'attempts');
     },
 
-    onFileChange: function (event) {
-      const file = event.getParameter('files') && event.getParameter('files')[0];
-      const deployButton = this.byId('deployButton');
-
-      this._zipBase64 = null;
-      deployButton.setEnabled(false);
-
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        // reader.result is a data: URL - strip the "data:...;base64," prefix.
-        this._zipBase64 = reader.result.split(',')[1];
-        deployButton.setEnabled(true);
-      };
-      reader.onerror = () => {
-        MessageToast.show(this._i18n.getText('fileReadError'));
-      };
-      reader.readAsDataURL(file);
+    onDescriptionChange: function () {
+      const hasText = this.byId('descriptionInput').getValue().trim().length > 0;
+      this.byId('deployButton').setEnabled(hasText);
     },
 
-    onDeployPress: async function () {
+    onGenerateAndDeployPress: async function () {
       const id = this.byId('artifactIdInput').getValue().trim();
       const name = this.byId('artifactNameInput').getValue().trim();
       const packageId = this.byId('packageIdInput').getValue().trim();
+      const description = this.byId('descriptionInput').getValue().trim();
 
-      if (!id || !name || !packageId || !this._zipBase64) {
+      if (!id || !name || !packageId || !description) {
         MessageToast.show(this._i18n.getText('validationError'));
         return;
       }
 
+      this._resetAttempts();
       this._setStatus('RUNNING', this._i18n.getText('statusRunning'));
       this._hideError();
+      this._hideMaxAttempts();
       this.byId('deployButton').setEnabled(false);
+      this.byId('fixButton').setVisible(false);
 
       try {
-        const response = await fetch(`${SERVICE_URL}/deployIflow`, {
+        const response = await fetch(`${SERVICE_URL}/generateAndDeploy`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, name, packageId, zipBase64: this._zipBase64 })
+          body: JSON.stringify({ id, name, packageId, description })
         });
 
         const body = await response.json();
@@ -73,6 +63,7 @@ sap.ui.define([
           throw new Error((body.error && body.error.message) || `Request failed with status ${response.status}`);
         }
 
+        this._currentJobId = body.jobId;
         this._pollJob(body.jobId);
       } catch (err) {
         this._setStatus('FAILED', this._i18n.getText('statusStartFailed'));
@@ -81,17 +72,47 @@ sap.ui.define([
       }
     },
 
+    onFixAndRedeployPress: async function () {
+      if (!this._currentJobId) return;
+
+      this._setStatus('RUNNING', this._i18n.getText('statusFixing'));
+      this._hideError();
+      this.byId('fixButton').setEnabled(false);
+
+      try {
+        const response = await fetch(`${SERVICE_URL}/fixAndRedeploy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId: this._currentJobId })
+        });
+
+        const body = await response.json();
+
+        if (!response.ok) {
+          throw new Error((body.error && body.error.message) || `Request failed with status ${response.status}`);
+        }
+
+        this._pollJob(this._currentJobId);
+      } catch (err) {
+        this._setStatus('FAILED', this._i18n.getText('statusFixFailed'));
+        this._showError(err.message);
+        this.byId('fixButton').setEnabled(true);
+      }
+    },
+
     _pollJob: function (jobId) {
       clearTimeout(this._pollHandle);
 
       const poll = async () => {
         try {
-          const response = await fetch(`${SERVICE_URL}/deploymentStatus(jobId='${encodeURIComponent(jobId)}')`);
+          const response = await fetch(`${SERVICE_URL}/jobStatus(jobId='${encodeURIComponent(jobId)}')`);
           const job = await response.json();
 
           if (!response.ok) {
-            throw new Error((job.error && job.error.message) || 'Could not fetch deployment status.');
+            throw new Error((job.error && job.error.message) || 'Could not fetch job status.');
           }
+
+          this._updateAttempts(job.attemptsJson);
 
           if (job.status === 'RUNNING') {
             this._setStatus('RUNNING', this._i18n.getText('statusRunning'));
@@ -100,6 +121,12 @@ sap.ui.define([
           }
 
           this.byId('deployButton').setEnabled(true);
+          this.byId('fixButton').setEnabled(true);
+          this.byId('fixButton').setVisible(job.canRetry);
+
+          if (!job.canRetry && job.status !== 'STARTED') {
+            this._showMaxAttempts();
+          }
 
           if (job.status === 'STARTED') {
             this._setStatus('STARTED', this._i18n.getText('statusStarted', [job.artifactId]));
@@ -107,6 +134,8 @@ sap.ui.define([
             this._setStatus('ERROR', this._i18n.getText('statusError', [job.artifactId]));
           } else if (job.status === 'TIMEOUT') {
             this._setStatus('TIMEOUT', this._i18n.getText('statusTimeout'));
+          } else if (job.status === 'GENERATION_FAILED') {
+            this._setStatus('GENERATION_FAILED', this._i18n.getText('statusGenerationFailed'));
           } else {
             this._setStatus('FAILED', this._i18n.getText('statusFailed'));
             if (job.error) this._showError(job.error);
@@ -119,6 +148,26 @@ sap.ui.define([
       };
 
       poll();
+    },
+
+    _resetAttempts: function () {
+      this.getView().getModel('attempts').setProperty('/list', []);
+    },
+
+    _updateAttempts: function (attemptsJson) {
+      let attempts = [];
+      try {
+        attempts = JSON.parse(attemptsJson) || [];
+      } catch (e) {
+        attempts = [];
+      }
+
+      const decorated = attempts.map((attempt) => ({
+        ...attempt,
+        statusState: STATUS_STATE[attempt.status] || 'None'
+      }));
+
+      this.getView().getModel('attempts').setProperty('/list', decorated);
     },
 
     _setStatus: function (statusKey, text) {
@@ -138,6 +187,14 @@ sap.ui.define([
 
     _hideError: function () {
       this.byId('errorStrip').setVisible(false);
+    },
+
+    _showMaxAttempts: function () {
+      this.byId('maxAttemptsStrip').setVisible(true);
+    },
+
+    _hideMaxAttempts: function () {
+      this.byId('maxAttemptsStrip').setVisible(false);
     },
 
     onCheckErrorsPress: async function () {

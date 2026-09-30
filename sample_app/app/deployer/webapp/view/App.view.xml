@@ -2,7 +2,6 @@
   controllerName="cpideployer.sample.controller.App"
   xmlns="sap.m"
   xmlns:mvc="sap.ui.core.mvc"
-  xmlns:u="sap.ui.unified"
   xmlns:f="sap.ui.layout.form"
 >
   <Shell>
@@ -26,15 +25,14 @@
               </content>
             </Panel>
 
-            <Panel headerText="{i18n>stepFileHeader}" class="sapUiResponsiveMargin">
+            <Panel headerText="{i18n>stepDescriptionHeader}" class="sapUiResponsiveMargin">
               <content>
-                <u:FileUploader
-                  id="fileUploader"
-                  name="iflowZip"
-                  fileType="zip"
-                  placeholder="{i18n>filePickerPlaceholder}"
-                  change="onFileChange"
+                <TextArea
+                  id="descriptionInput"
+                  placeholder="{i18n>descriptionPlaceholder}"
+                  rows="3"
                   width="100%"
+                  liveChange="onDescriptionChange"
                 />
               </content>
             </Panel>
@@ -42,13 +40,23 @@
             <Panel headerText="{i18n>stepDeployHeader}" class="sapUiResponsiveMargin">
               <content>
                 <VBox class="sapUiSmallMarginTop">
-                  <Button
-                    id="deployButton"
-                    text="{i18n>deployButtonText}"
-                    type="Emphasized"
-                    enabled="false"
-                    press="onDeployPress"
-                  />
+                  <HBox>
+                    <Button
+                      id="deployButton"
+                      text="{i18n>deployButtonText}"
+                      type="Emphasized"
+                      enabled="false"
+                      press="onGenerateAndDeployPress"
+                    />
+                    <Button
+                      id="fixButton"
+                      text="{i18n>fixButtonText}"
+                      type="Attention"
+                      visible="false"
+                      class="sapUiTinyMarginBegin"
+                      press="onFixAndRedeployPress"
+                    />
+                  </HBox>
 
                   <HBox class="sapUiSmallMarginTop" alignItems="Center">
                     <BusyIndicator id="statusBusy" visible="false" size="1rem" class="sapUiTinyMarginEnd" />
@@ -62,6 +70,37 @@
                     showIcon="true"
                     class="sapUiSmallMarginTop"
                   />
+
+                  <MessageStrip
+                    id="maxAttemptsStrip"
+                    visible="false"
+                    type="Warning"
+                    showIcon="true"
+                    text="{i18n>maxAttemptsReached}"
+                    class="sapUiSmallMarginTop"
+                  />
+
+                  <Table
+                    id="attemptsTable"
+                    class="sapUiSmallMarginTop"
+                    items="{attempts>/list}"
+                    noDataText="{i18n>noAttemptsYet}"
+                  >
+                    <columns>
+                      <Column><Text text="{i18n>colAttempt}" /></Column>
+                      <Column><Text text="{i18n>colResult}" /></Column>
+                      <Column><Text text="{i18n>colSummary}" /></Column>
+                    </columns>
+                    <items>
+                      <ColumnListItem>
+                        <cells>
+                          <Text text="{attempts>attemptNumber}" />
+                          <ObjectStatus text="{attempts>status}" state="{attempts>statusState}" />
+                          <Text text="{attempts>summary}" />
+                        </cells>
+                      </ColumnListItem>
+                    </items>
+                  </Table>
                 </VBox>
               </content>
             </Panel>

@@ -1,9 +1,10 @@
 {
   "name": "cpi-deployer-sample-app",
   "version": "1.0.0",
-  "description": "Minimal CAP + Fiori sample app demonstrating @david10ten/deployer: pick an iFlow ZIP, deploy it to CPI, watch a status indicator.",
+  "description": "Minimal CAP + Fiori sample app demonstrating @david10ten/deployer and @cpi-ai/compiler: describe an iFlow in natural language, generate + deploy it to CPI, and auto-fix deployment errors using SAP's own feedback.",
   "private": true,
   "dependencies": {
+    "@cpi-ai/compiler": "file:../vendor/cpi-ai-compiler-1.0.0.tgz",
     "@david10ten/deployer": "^1.1.0",
     "@sap/cds": "^9",
     "express": "^4"

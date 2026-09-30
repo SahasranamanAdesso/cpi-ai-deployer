@@ -1,50 +1,191 @@
 const cds = require('@sap/cds');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { CpiDeployer } = require('@david10ten/deployer');
+const {
+  DeploymentOrchestrator,
+  IntegrationFlowGenerator,
+  AIPipeline,
+  ClaudeProvider,
+  AdessoAIHubProvider
+} = require('@cpi-ai/compiler');
 
 const deployer = new CpiDeployer();
+
+const DEFAULT_AI_HUB_URL = 'https://adesso-ai-hub.3asabc.de/v1/chat/completions';
+const DEFAULT_AI_HUB_MODEL = 'deepseek-v4-flash-sovereign';
+
+// Cap on manual "Fix & Redeploy" clicks per job - each one calls the AI
+// provider and re-deploys, so this bounds cost/time for a runaway loop.
+const MAX_MANUAL_ATTEMPTS = 5;
 
 // In-memory job store - fine for a sample app, not for production use.
 const jobs = new Map();
 let nextJobId = 1;
 
-module.exports = cds.service.impl(async function () {
-  this.on('deployIflow', async (req) => {
-    const { id, name, packageId, zipBase64 } = req.data;
+/**
+ * Prefers adesso AI Hub (AI_HUB_API_KEY) when configured, falling back to a
+ * direct Anthropic key (ANTHROPIC_API_KEY) otherwise. Both use the same
+ * AIProvider interface from @cpi-ai/compiler, so the rest of the pipeline
+ * (PromptBuilder, FlowValidator, CodeExecutor) is identical either way.
+ */
+function buildAiProvider() {
+  const aiHubKey = process.env.AI_HUB_API_KEY;
+  if (aiHubKey) {
+    const apiUrl = process.env.AI_HUB_API_URL || DEFAULT_AI_HUB_URL;
+    const model = process.env.AI_HUB_MODEL || DEFAULT_AI_HUB_MODEL;
+    return new AdessoAIHubProvider(aiHubKey, apiUrl, model);
+  }
 
-    if (!id || !name || !packageId || !zipBase64) {
-      return req.error(400, 'id, name, packageId and zipBase64 are all required.');
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) {
+    return new ClaudeProvider(anthropicKey);
+  }
+
+  throw new Error(
+    'No AI provider configured. Set AI_HUB_API_KEY (adesso AI Hub) or ANTHROPIC_API_KEY ' +
+    '(a direct Anthropic key, not a Claude Code session key) in sample_app/.env - see .env.example.'
+  );
+}
+
+function buildOrchestrator(artifact) {
+  const provider = buildAiProvider();
+
+  const generator = new IntegrationFlowGenerator(new AIPipeline(provider));
+  return new DeploymentOrchestrator(generator, deployer, artifact);
+}
+
+/** Derives the job-level status string from a DeploymentAttempt's outcome. */
+function statusFromAttempt(attempt) {
+  if (attempt.generationErrors && attempt.generationErrors.length > 0) return 'GENERATION_FAILED';
+  if (attempt.deployResult) return attempt.deployResult.status; // 'STARTED' | 'ERROR' | 'TIMEOUT'
+  return 'FAILED';
+}
+
+/** True for any terminal status a "Fix & Redeploy" click can act on. */
+function isFailureStatus(status) {
+  return status === 'GENERATION_FAILED' || status === 'ERROR' || status === 'TIMEOUT' || status === 'FAILED';
+}
+
+/** Slim, UI-friendly summary of one attempt - avoids shipping full generated code/raw payloads to the client. */
+function summarizeAttempt(attempt) {
+  const status = statusFromAttempt(attempt);
+  let summary;
+  if (status === 'GENERATION_FAILED') {
+    summary = attempt.generationErrors.join('; ');
+  } else if (status === 'STARTED') {
+    summary = 'Deployed successfully.';
+  } else {
+    summary = attempt.feedbackGiven || 'Deployment did not reach a running state.';
+  }
+  return { attemptNumber: attempt.attemptNumber, status, summary };
+}
+
+function runAttemptInBackground(jobId, orchestrator, request, outputPath, attemptNumber) {
+  orchestrator
+    .runAttempt(request, outputPath, undefined, attemptNumber)
+    .then((attempt) => {
+      const job = jobs.get(jobId);
+      if (!job) return; // job was cleared/replaced
+      job.attempts.push(attempt);
+      job.status = statusFromAttempt(attempt);
+    })
+    .catch((err) => {
+      const job = jobs.get(jobId);
+      if (!job) return;
+      job.status = 'FAILED';
+      job.error = err.message;
+    })
+    .finally(() => {
+      fs.rm(outputPath, { force: true }, () => {});
+    });
+}
+
+module.exports = cds.service.impl(async function () {
+  this.on('generateAndDeploy', async (req) => {
+    const { id, name, packageId, description } = req.data;
+
+    if (!id || !name || !packageId || !description) {
+      return req.error(400, 'id, name, packageId and description are all required.');
+    }
+
+    let orchestrator;
+    try {
+      orchestrator = buildOrchestrator({ id, name, packageId });
+    } catch (err) {
+      return req.error(500, err.message);
     }
 
     const jobId = String(nextJobId++);
-    jobs.set(jobId, { status: 'RUNNING', artifactId: id });
+    const outputPath = path.join(os.tmpdir(), `iflow-${jobId}-${Date.now()}.zip`);
 
-    // Deploy runs in the background - the UI polls deploymentStatus for the outcome,
-    // since create/deploy/poll can take well beyond a single request's lifetime.
-    deployer
-      .deployZip({ id, name, packageId, zipBase64 })
-      .then((result) => {
-        jobs.set(jobId, { status: result.status, artifactId: id }); // 'STARTED' | 'ERROR' | 'TIMEOUT'
-      })
-      .catch((err) => {
-        jobs.set(jobId, { status: 'FAILED', artifactId: id, error: err.message });
-      });
+    jobs.set(jobId, {
+      id, name, packageId,
+      originalRequest: description,
+      attempts: [],
+      status: 'RUNNING'
+    });
+
+    runAttemptInBackground(jobId, orchestrator, description, outputPath, 1);
 
     return { jobId };
   });
 
-  this.on('deploymentStatus', (req) => {
+  this.on('fixAndRedeploy', async (req) => {
     const { jobId } = req.data;
     const job = jobs.get(jobId);
 
-    if (!job) {
-      return req.error(404, `Unknown job id '${jobId}'.`);
+    if (!job) return req.error(404, `Unknown job id '${jobId}'.`);
+    if (job.status === 'RUNNING') return req.error(409, 'This job is still in progress.');
+
+    const lastAttempt = job.attempts[job.attempts.length - 1];
+    if (!lastAttempt || !isFailureStatus(job.status)) {
+      return req.error(400, 'This job has not failed - nothing to fix.');
+    }
+    if (job.attempts.length >= MAX_MANUAL_ATTEMPTS) {
+      return req.error(400, `Maximum of ${MAX_MANUAL_ATTEMPTS} attempts reached for this job.`);
     }
 
-    return { jobId, ...job };
+    let orchestrator;
+    try {
+      orchestrator = buildOrchestrator({ id: job.id, name: job.name, packageId: job.packageId });
+    } catch (err) {
+      return req.error(500, err.message);
+    }
+
+    const nextRequest = orchestrator.buildNextRequest(job.originalRequest, lastAttempt);
+    const nextAttemptNumber = job.attempts.length + 1;
+    const outputPath = path.join(os.tmpdir(), `iflow-${jobId}-${Date.now()}.zip`);
+
+    job.status = 'RUNNING';
+
+    runAttemptInBackground(jobId, orchestrator, nextRequest, outputPath, nextAttemptNumber);
+
+    return { jobId };
+  });
+
+  this.on('jobStatus', (req) => {
+    const { jobId } = req.data;
+    const job = jobs.get(jobId);
+
+    if (!job) return req.error(404, `Unknown job id '${jobId}'.`);
+
+    const canRetry = job.status !== 'RUNNING' && isFailureStatus(job.status) && job.attempts.length < MAX_MANUAL_ATTEMPTS;
+
+    return {
+      jobId,
+      status: job.status,
+      artifactId: job.id,
+      attemptCount: job.attempts.length,
+      canRetry,
+      attemptsJson: JSON.stringify(job.attempts.map(summarizeAttempt)),
+      error: job.error
+    };
   });
 
   // Demonstrates CpiDeployer.listArtifacts() / getArtifactError() - "which
-  // flows are broken, and why?" - as opposed to deployIflow's "deploy this one".
+  // flows are broken, and why?" - as opposed to the job flow's "fix this one".
   this.on('listErrorArtifacts', async () => {
     return deployer.listArtifacts({ status: 'ERROR' });
   });

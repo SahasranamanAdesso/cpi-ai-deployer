@@ -1,21 +1,30 @@
 @path: '/deploy'
 service DeployService {
-    action deployIflow(
-        id        : String,
-        name      : String,
-        packageId : String,
-        zipBase64 : LargeString
+    action generateAndDeploy(
+        id          : String,
+        name        : String,
+        packageId   : String,
+        description : LargeString
     ) returns {
         jobId : String;
     };
 
-    function deploymentStatus(
+    action fixAndRedeploy(
         jobId : String
     ) returns {
-        jobId      : String;
-        status     : String;
-        artifactId : String;
-        error      : String;
+        jobId : String;
+    };
+
+    function jobStatus(
+        jobId : String
+    ) returns {
+        jobId         : String;
+        status        : String;
+        artifactId    : String;
+        attemptCount  : Integer;
+        canRetry      : Boolean;
+        attemptsJson  : LargeString;
+        error         : String;
     };
 
     function listErrorArtifacts() returns array of {
