@@ -224,7 +224,18 @@ sap.ui.define([
       this._hideError();
       this._hideMaxAttempts();
       this._setStatus('RUNNING', this._i18n.getText('statusRunning'));
+      this.byId('iconTabBar').setSelectedKey('generate');
       this._pollJob(jobId);
+    },
+
+    onDownloadZipPress: function (event) {
+      const context = event.getSource().getBindingContext('attempts');
+      const attemptNumber = context.getProperty('attemptNumber');
+
+      if (!this._currentJobId) return;
+
+      const url = `${SERVICE_URL}/downloadZip(jobId='${encodeURIComponent(this._currentJobId)}',attemptNumber=${encodeURIComponent(attemptNumber)})`;
+      window.open(url, '_blank');
     },
 
     _pollJob: function (jobId) {

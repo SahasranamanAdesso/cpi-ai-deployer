@@ -10,6 +10,7 @@
     }
   },
   "sap.ui": {
+    "fullWidth":true,
     "technology": "UI5",
     "deviceTypes": {
       "desktop": true,
@@ -24,6 +25,7 @@
       "async": true,
       "id": "app"
     },
+    
     "dependencies": {
       "minUI5Version": "1.120.0",
       "libs": {

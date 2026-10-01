@@ -1,5 +1,11 @@
 @path: '/deploy'
 service DeployService {
+    @(Core: {
+        MediaType: 'application/zip',
+        ContentDisposition.Filename: 'iflow.zip'
+    })
+    type IflowZip : LargeBinary;
+
     action generateAndDeploy(
         id          : String,
         name        : String,
@@ -59,6 +65,11 @@ service DeployService {
         attemptsJson  : LargeString;
         error         : String;
     };
+
+    function downloadZip(
+        jobId         : String,
+        attemptNumber : Integer
+    ) returns IflowZip;
 
     function listErrorArtifacts() returns array of {
         Id         : String;

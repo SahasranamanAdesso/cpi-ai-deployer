@@ -5,14 +5,14 @@
   xmlns:u="sap.ui.unified"
   xmlns:f="sap.ui.layout.form"
 >
-  <Shell>
+  <Shell appWidthLimited="false">
     <App>
       <Page title="{i18n>appTitle}">
         <content>
-          <VBox class="sapUiMediumMargin" width="auto">
+          <IconTabBar id="iconTabBar" class="sapUiResponsiveContentPadding" expandable="false">
+            <items>
 
-            <Panel headerText="{i18n>jobHistoryHeader}" class="sapUiResponsiveMargin" expandable="true" expanded="false">
-              <content>
+              <IconTabFilter key="history" icon="sap-icon://history" text="{i18n>tabJobHistory}">
                 <VBox class="sapUiSmallMarginTop">
                   <Button
                     id="refreshJobsButton"
@@ -48,177 +48,187 @@
                     </items>
                   </Table>
                 </VBox>
-              </content>
-            </Panel>
+              </IconTabFilter>
 
-            <Panel headerText="{i18n>stepDetailsHeader}" class="sapUiResponsiveMargin">
-              <content>
-                <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="{i18n>artifactIdLabel}" />
-                  <Input id="artifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
+              <IconTabFilter key="generate" icon="sap-icon://create" text="{i18n>tabGenerate}">
+                <VBox>
+                  <Panel headerText="{i18n>stepDetailsHeader}" class="sapUiResponsiveMargin">
+                    <content>
+                      <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                        <Label text="{i18n>artifactIdLabel}" />
+                        <Input id="artifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
 
-                  <Label text="{i18n>artifactNameLabel}" />
-                  <Input id="artifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
+                        <Label text="{i18n>artifactNameLabel}" />
+                        <Input id="artifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
 
-                  <Label text="{i18n>packageIdLabel}" />
-                  <Input id="packageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
-                </f:SimpleForm>
-              </content>
-            </Panel>
+                        <Label text="{i18n>packageIdLabel}" />
+                        <Input id="packageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+                      </f:SimpleForm>
+                    </content>
+                  </Panel>
 
-            <Panel headerText="{i18n>stepDescriptionHeader}" class="sapUiResponsiveMargin">
-              <content>
-                <TextArea
-                  id="descriptionInput"
-                  placeholder="{i18n>descriptionPlaceholder}"
-                  rows="3"
-                  width="100%"
-                  liveChange="onDescriptionChange"
-                />
-              </content>
-            </Panel>
+                  <Panel headerText="{i18n>stepDescriptionHeader}" class="sapUiResponsiveMargin">
+                    <content>
+                      <TextArea
+                        id="descriptionInput"
+                        placeholder="{i18n>descriptionPlaceholder}"
+                        rows="3"
+                        width="100%"
+                        liveChange="onDescriptionChange"
+                      />
+                    </content>
+                  </Panel>
 
-            <Panel headerText="{i18n>stepDeployHeader}" class="sapUiResponsiveMargin">
-              <content>
-                <VBox class="sapUiSmallMarginTop">
-                  <HBox>
-                    <Button
-                      id="deployButton"
-                      text="{i18n>deployButtonText}"
-                      type="Emphasized"
-                      enabled="false"
-                      press="onGenerateAndDeployPress"
-                    />
-                    <Button
-                      id="fixButton"
-                      text="{i18n>fixButtonText}"
-                      type="Attention"
-                      visible="false"
-                      class="sapUiTinyMarginBegin"
-                      press="onFixAndRedeployPress"
-                    />
-                  </HBox>
+                  <Panel headerText="{i18n>stepDeployHeader}" class="sapUiResponsiveMargin">
+                    <content>
+                      <VBox class="sapUiSmallMarginTop">
+                        <HBox>
+                          <Button
+                            id="deployButton"
+                            text="{i18n>deployButtonText}"
+                            type="Emphasized"
+                            enabled="false"
+                            press="onGenerateAndDeployPress"
+                          />
+                          <Button
+                            id="fixButton"
+                            text="{i18n>fixButtonText}"
+                            type="Attention"
+                            visible="false"
+                            class="sapUiTinyMarginBegin"
+                            press="onFixAndRedeployPress"
+                          />
+                        </HBox>
 
-                  <HBox class="sapUiSmallMarginTop" alignItems="Center">
-                    <BusyIndicator id="statusBusy" visible="false" size="1rem" class="sapUiTinyMarginEnd" />
-                    <ObjectStatus id="statusText" text="{i18n>statusInitial}" state="None" />
-                  </HBox>
+                        <HBox class="sapUiSmallMarginTop" alignItems="Center">
+                          <BusyIndicator id="statusBusy" visible="false" size="1rem" class="sapUiTinyMarginEnd" />
+                          <ObjectStatus id="statusText" text="{i18n>statusInitial}" state="None" />
+                        </HBox>
 
-                  <MessageStrip
-                    id="errorStrip"
-                    visible="false"
-                    type="Error"
-                    showIcon="true"
-                    class="sapUiSmallMarginTop"
-                  />
+                        <MessageStrip
+                          id="errorStrip"
+                          visible="false"
+                          type="Error"
+                          showIcon="true"
+                          class="sapUiSmallMarginTop"
+                        />
 
-                  <MessageStrip
-                    id="maxAttemptsStrip"
-                    visible="false"
-                    type="Warning"
-                    showIcon="true"
-                    text="{i18n>maxAttemptsReached}"
-                    class="sapUiSmallMarginTop"
-                  />
+                        <MessageStrip
+                          id="maxAttemptsStrip"
+                          visible="false"
+                          type="Warning"
+                          showIcon="true"
+                          text="{i18n>maxAttemptsReached}"
+                          class="sapUiSmallMarginTop"
+                        />
 
-                  <Table
-                    id="attemptsTable"
-                    class="sapUiSmallMarginTop"
-                    items="{attempts>/list}"
-                    noDataText="{i18n>noAttemptsYet}"
-                  >
-                    <columns>
-                      <Column><Text text="{i18n>colAttempt}" /></Column>
-                      <Column><Text text="{i18n>colResult}" /></Column>
-                      <Column><Text text="{i18n>colSummary}" /></Column>
-                    </columns>
-                    <items>
-                      <ColumnListItem>
-                        <cells>
-                          <Text text="{attempts>attemptNumber}" />
-                          <ObjectStatus text="{attempts>status}" state="{attempts>statusState}" />
-                          <Text text="{attempts>summary}" />
-                        </cells>
-                      </ColumnListItem>
-                    </items>
-                  </Table>
+                        <Table
+                          id="attemptsTable"
+                          class="sapUiSmallMarginTop"
+                          items="{attempts>/list}"
+                          noDataText="{i18n>noAttemptsYet}"
+                        >
+                          <columns>
+                            <Column><Text text="{i18n>colAttempt}" /></Column>
+                            <Column><Text text="{i18n>colResult}" /></Column>
+                            <Column><Text text="{i18n>colSummary}" /></Column>
+                            <Column><Text text="{i18n>colDownload}" /></Column>
+                          </columns>
+                          <items>
+                            <ColumnListItem>
+                              <cells>
+                                <Text text="{attempts>attemptNumber}" />
+                                <ObjectStatus text="{attempts>status}" state="{attempts>statusState}" />
+                                <Text text="{attempts>summary}" />
+                                <Button
+                                  icon="sap-icon://download"
+                                  type="Transparent"
+                                  text="{i18n>downloadButtonText}"
+                                  visible="{attempts>hasZip}"
+                                  press="onDownloadZipPress"
+                                />
+                              </cells>
+                            </ColumnListItem>
+                          </items>
+                        </Table>
+                      </VBox>
+                    </content>
+                  </Panel>
                 </VBox>
-              </content>
-            </Panel>
+              </IconTabFilter>
 
-            <Panel headerText="{i18n>stepZipHeader}" class="sapUiResponsiveMargin" expandable="true" expanded="false">
-              <content>
-                <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="{i18n>artifactIdLabel}" />
-                  <Input id="zipArtifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
+              <IconTabFilter key="zip" icon="sap-icon://upload" text="{i18n>tabZip}">
+                <VBox class="sapUiSmallMarginTop">
+                  <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                    <Label text="{i18n>artifactIdLabel}" />
+                    <Input id="zipArtifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
 
-                  <Label text="{i18n>artifactNameLabel}" />
-                  <Input id="zipArtifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
+                    <Label text="{i18n>artifactNameLabel}" />
+                    <Input id="zipArtifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
 
-                  <Label text="{i18n>packageIdLabel}" />
-                  <Input id="zipPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
-                </f:SimpleForm>
+                    <Label text="{i18n>packageIdLabel}" />
+                    <Input id="zipPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+                  </f:SimpleForm>
 
-                <u:FileUploader
-                  id="zipFileUploader"
-                  name="iflowZip"
-                  fileType="zip"
-                  placeholder="{i18n>filePickerPlaceholder}"
-                  change="onZipFileChange"
-                  width="100%"
-                />
+                  <u:FileUploader
+                    id="zipFileUploader"
+                    name="iflowZip"
+                    fileType="zip"
+                    placeholder="{i18n>filePickerPlaceholder}"
+                    change="onZipFileChange"
+                    width="100%"
+                  />
 
-                <TextArea
-                  id="zipDescriptionInput"
-                  placeholder="{i18n>zipDescriptionPlaceholder}"
-                  rows="2"
-                  width="100%"
-                  class="sapUiSmallMarginTop"
-                />
+                  <TextArea
+                    id="zipDescriptionInput"
+                    placeholder="{i18n>zipDescriptionPlaceholder}"
+                    rows="2"
+                    width="100%"
+                    class="sapUiSmallMarginTop"
+                  />
 
-                <Button
-                  id="deployZipButton"
-                  text="{i18n>deployZipButtonText}"
-                  type="Emphasized"
-                  enabled="false"
-                  class="sapUiSmallMarginTop"
-                  press="onDeployZipPress"
-                />
-              </content>
-            </Panel>
+                  <Button
+                    id="deployZipButton"
+                    text="{i18n>deployZipButtonText}"
+                    type="Emphasized"
+                    enabled="false"
+                    class="sapUiSmallMarginTop"
+                    press="onDeployZipPress"
+                  />
+                </VBox>
+              </IconTabFilter>
 
-            <Panel headerText="{i18n>stepManualHeader}" class="sapUiResponsiveMargin" expandable="true" expanded="false">
-              <content>
-                <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                  <Label text="{i18n>artifactIdLabel}" />
-                  <Input id="manualArtifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
+              <IconTabFilter key="manual" icon="sap-icon://add-document" text="{i18n>tabManual}">
+                <VBox class="sapUiSmallMarginTop">
+                  <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                    <Label text="{i18n>artifactIdLabel}" />
+                    <Input id="manualArtifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
 
-                  <Label text="{i18n>artifactNameLabel}" />
-                  <Input id="manualArtifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
+                    <Label text="{i18n>artifactNameLabel}" />
+                    <Input id="manualArtifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
 
-                  <Label text="{i18n>packageIdLabel}" />
-                  <Input id="manualPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
-                </f:SimpleForm>
+                    <Label text="{i18n>packageIdLabel}" />
+                    <Input id="manualPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+                  </f:SimpleForm>
 
-                <TextArea
-                  id="manualDescriptionInput"
-                  placeholder="{i18n>manualDescriptionPlaceholder}"
-                  rows="2"
-                  width="100%"
-                />
+                  <TextArea
+                    id="manualDescriptionInput"
+                    placeholder="{i18n>manualDescriptionPlaceholder}"
+                    rows="2"
+                    width="100%"
+                  />
 
-                <Button
-                  id="addManualJobButton"
-                  text="{i18n>addManualJobButtonText}"
-                  type="Emphasized"
-                  class="sapUiSmallMarginTop"
-                  press="onAddManualJobPress"
-                />
-              </content>
-            </Panel>
+                  <Button
+                    id="addManualJobButton"
+                    text="{i18n>addManualJobButtonText}"
+                    type="Emphasized"
+                    class="sapUiSmallMarginTop"
+                    press="onAddManualJobPress"
+                  />
+                </VBox>
+              </IconTabFilter>
 
-            <Panel headerText="{i18n>stepErrorsHeader}" class="sapUiResponsiveMargin">
-              <content>
+              <IconTabFilter key="errors" icon="sap-icon://alert" text="{i18n>tabErrors}">
                 <VBox class="sapUiSmallMarginTop">
                   <Button
                     id="checkErrorsButton"
@@ -256,10 +266,10 @@
                     class="sapUiSmallMarginTop"
                   />
                 </VBox>
-              </content>
-            </Panel>
+              </IconTabFilter>
 
-          </VBox>
+            </items>
+          </IconTabBar>
         </content>
       </Page>
     </App>

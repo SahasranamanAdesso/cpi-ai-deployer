@@ -1,7 +1,7 @@
 const cds = require('@sap/cds');
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
+const { Readable } = require('stream');
 const { CpiDeployer } = require('@david10ten/deployer');
 const {
   DeploymentOrchestrator,
@@ -21,6 +21,16 @@ const DEFAULT_AI_HUB_MODEL = 'deepseek-v4-flash-sovereign';
 // Cap on manual "Fix & Redeploy" clicks per job - each one calls the AI
 // provider and re-deploys, so this bounds cost/time for a runaway loop.
 const MAX_MANUAL_ATTEMPTS = 5;
+
+// Generated ZIPs are kept here (not cleaned up - fine for a sample app, not
+// for production use) so each attempt can be downloaded later, including
+// failed ones (useful for inspecting what the AI actually generated).
+const ZIPS_DIR = path.join(__dirname, '..', 'data', 'zips');
+fs.mkdirSync(ZIPS_DIR, { recursive: true });
+
+function zipPathFor(jobId, attemptNumber) {
+  return path.join(ZIPS_DIR, `${jobId}-${attemptNumber}.zip`);
+}
 
 // Job store: in-memory Map backed by data/jobs.csv (see job-store.js), so
 // job history (including the original prompt) survives server restarts.
@@ -103,7 +113,9 @@ function summarizeAttempt(attempt) {
   } else {
     summary = attempt.feedbackGiven || 'Deployment did not reach a running state.';
   }
-  return { attemptNumber: attempt.attemptNumber, status, summary };
+  // Expose only whether a zip exists, never the server-side filesystem path -
+  // the client fetches it via downloadZip(jobId, attemptNumber).
+  return { attemptNumber: attempt.attemptNumber, status, summary, hasZip: Boolean(attempt.zipPath) };
 }
 
 function canRetryJob(job) {
@@ -116,6 +128,12 @@ function runAttemptInBackground(jobId, orchestrator, request, outputPath, attemp
     .then((attempt) => {
       const job = jobs.get(jobId);
       if (!job) return; // job was cleared/replaced
+      // Generation failures never reach the point of writing outputPath -
+      // only record a zipPath when the file actually exists, so the UI
+      // knows not to offer a download for those attempts.
+      if (fs.existsSync(outputPath)) {
+        attempt.zipPath = outputPath;
+      }
       job.attempts.push(attempt);
       job.status = statusFromAttempt(attempt);
       job.updatedAt = new Date().toISOString();
@@ -128,9 +146,6 @@ function runAttemptInBackground(jobId, orchestrator, request, outputPath, attemp
       job.error = err.message;
       job.updatedAt = new Date().toISOString();
       persist();
-    })
-    .finally(() => {
-      fs.rm(outputPath, { force: true }, () => {});
     });
 }
 
@@ -165,7 +180,7 @@ module.exports = cds.service.impl(async function () {
     }
 
     const jobId = String(nextJobId++);
-    const outputPath = path.join(os.tmpdir(), `iflow-${jobId}-${Date.now()}.zip`);
+    const outputPath = zipPathFor(jobId, 1);
 
     createJob(jobId, { id, name, packageId, source: 'ai', originalRequest: description });
 
@@ -182,7 +197,7 @@ module.exports = cds.service.impl(async function () {
     }
 
     const jobId = String(nextJobId++);
-    const outputPath = path.join(os.tmpdir(), `iflow-${jobId}-${Date.now()}.zip`);
+    const outputPath = zipPathFor(jobId, 1);
     const orchestrator = buildZipPassthroughOrchestrator({ id, name, packageId }, zipBase64);
 
     createJob(jobId, { id, name, packageId, source: 'zip', originalRequest: description || '' });
@@ -274,7 +289,7 @@ module.exports = cds.service.impl(async function () {
 
     const nextRequest = orchestrator.buildNextRequest(job.originalRequest, lastAttempt);
     const nextAttemptNumber = job.attempts.length + 1;
-    const outputPath = path.join(os.tmpdir(), `iflow-${jobId}-${Date.now()}.zip`);
+    const outputPath = zipPathFor(jobId, nextAttemptNumber);
 
     job.status = 'RUNNING';
     job.updatedAt = new Date().toISOString();
@@ -318,6 +333,20 @@ module.exports = cds.service.impl(async function () {
         updatedAt: job.updatedAt
       }))
       .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  });
+
+  this.on('downloadZip', (req) => {
+    const { jobId, attemptNumber } = req.data;
+    const job = jobs.get(jobId);
+
+    if (!job) return req.error(404, `Unknown job id '${jobId}'.`);
+
+    const attempt = job.attempts.find((a) => a.attemptNumber === attemptNumber);
+    if (!attempt || !attempt.zipPath || !fs.existsSync(attempt.zipPath)) {
+      return req.error(404, `No zip available for job '${jobId}' attempt ${attemptNumber}.`);
+    }
+
+    return Readable.from([fs.readFileSync(attempt.zipPath)]);
   });
 
   // Demonstrates CpiDeployer.listArtifacts() / getArtifactError() - "which
