@@ -29,6 +29,7 @@
       "libs": {
         "sap.m": {},
         "sap.ui.core": {},
+        "sap.ui.unified": {},
         "sap.ui.layout": {}
       }
     },

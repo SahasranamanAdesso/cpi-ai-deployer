@@ -2,6 +2,7 @@
   controllerName="cpideployer.sample.controller.App"
   xmlns="sap.m"
   xmlns:mvc="sap.ui.core.mvc"
+  xmlns:u="sap.ui.unified"
   xmlns:f="sap.ui.layout.form"
 >
   <Shell>
@@ -9,6 +10,46 @@
       <Page title="{i18n>appTitle}">
         <content>
           <VBox class="sapUiMediumMargin" width="auto">
+
+            <Panel headerText="{i18n>jobHistoryHeader}" class="sapUiResponsiveMargin" expandable="true" expanded="false">
+              <content>
+                <VBox class="sapUiSmallMarginTop">
+                  <Button
+                    id="refreshJobsButton"
+                    text="{i18n>refreshJobsButtonText}"
+                    press="onRefreshJobsPress"
+                  />
+
+                  <Table
+                    id="jobsTable"
+                    class="sapUiSmallMarginTop"
+                    items="{jobs>/list}"
+                    noDataText="{i18n>noJobsYet}"
+                  >
+                    <columns>
+                      <Column><Text text="{i18n>colArtifactId}" /></Column>
+                      <Column><Text text="{i18n>colSource}" /></Column>
+                      <Column><Text text="{i18n>colResult}" /></Column>
+                      <Column><Text text="{i18n>colAttempt}" /></Column>
+                      <Column><Text text="{i18n>colUpdatedAt}" /></Column>
+                      <Column></Column>
+                    </columns>
+                    <items>
+                      <ColumnListItem>
+                        <cells>
+                          <Text text="{jobs>id}" />
+                          <Text text="{jobs>source}" />
+                          <ObjectStatus text="{jobs>status}" />
+                          <Text text="{jobs>attemptCount}" />
+                          <Text text="{jobs>updatedAt}" />
+                          <Button text="{i18n>selectJobButtonText}" press="onSelectJobPress" />
+                        </cells>
+                      </ColumnListItem>
+                    </items>
+                  </Table>
+                </VBox>
+              </content>
+            </Panel>
 
             <Panel headerText="{i18n>stepDetailsHeader}" class="sapUiResponsiveMargin">
               <content>
@@ -102,6 +143,77 @@
                     </items>
                   </Table>
                 </VBox>
+              </content>
+            </Panel>
+
+            <Panel headerText="{i18n>stepZipHeader}" class="sapUiResponsiveMargin" expandable="true" expanded="false">
+              <content>
+                <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="{i18n>artifactIdLabel}" />
+                  <Input id="zipArtifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
+
+                  <Label text="{i18n>artifactNameLabel}" />
+                  <Input id="zipArtifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
+
+                  <Label text="{i18n>packageIdLabel}" />
+                  <Input id="zipPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+                </f:SimpleForm>
+
+                <u:FileUploader
+                  id="zipFileUploader"
+                  name="iflowZip"
+                  fileType="zip"
+                  placeholder="{i18n>filePickerPlaceholder}"
+                  change="onZipFileChange"
+                  width="100%"
+                />
+
+                <TextArea
+                  id="zipDescriptionInput"
+                  placeholder="{i18n>zipDescriptionPlaceholder}"
+                  rows="2"
+                  width="100%"
+                  class="sapUiSmallMarginTop"
+                />
+
+                <Button
+                  id="deployZipButton"
+                  text="{i18n>deployZipButtonText}"
+                  type="Emphasized"
+                  enabled="false"
+                  class="sapUiSmallMarginTop"
+                  press="onDeployZipPress"
+                />
+              </content>
+            </Panel>
+
+            <Panel headerText="{i18n>stepManualHeader}" class="sapUiResponsiveMargin" expandable="true" expanded="false">
+              <content>
+                <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
+                  <Label text="{i18n>artifactIdLabel}" />
+                  <Input id="manualArtifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
+
+                  <Label text="{i18n>artifactNameLabel}" />
+                  <Input id="manualArtifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
+
+                  <Label text="{i18n>packageIdLabel}" />
+                  <Input id="manualPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+                </f:SimpleForm>
+
+                <TextArea
+                  id="manualDescriptionInput"
+                  placeholder="{i18n>manualDescriptionPlaceholder}"
+                  rows="2"
+                  width="100%"
+                />
+
+                <Button
+                  id="addManualJobButton"
+                  text="{i18n>addManualJobButtonText}"
+                  type="Emphasized"
+                  class="sapUiSmallMarginTop"
+                  press="onAddManualJobPress"
+                />
               </content>
             </Panel>
 

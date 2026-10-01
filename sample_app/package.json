@@ -14,7 +14,7 @@
   },
   "scripts": {
     "start": "cds-serve",
-    "watch": "NODE_PATH= cds watch"
+    "watch": "NODE_PATH= cds watch --exclude data"
   },
   "cds": {
     "requires": {

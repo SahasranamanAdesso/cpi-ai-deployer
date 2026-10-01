@@ -3,6 +3,10 @@ target/
 _out/
 gen/
 
+# Runtime job history (prompts, deployment attempts, tenant artifact ids) -
+# generated at runtime, not part of the app's source.
+data/
+
 .cdsrc-private.json
 default-*.json
 *.sqlite

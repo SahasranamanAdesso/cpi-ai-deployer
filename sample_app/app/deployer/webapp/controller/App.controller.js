@@ -22,9 +22,12 @@ sap.ui.define([
     onInit: function () {
       this._currentJobId = null;
       this._pollHandle = null;
+      this._zipBase64 = null;
       this._i18n = this.getView().getModel('i18n').getResourceBundle();
       this.getView().setModel(new JSONModel({ artifacts: [] }), 'errors');
       this.getView().setModel(new JSONModel({ list: [] }), 'attempts');
+      this.getView().setModel(new JSONModel({ list: [] }), 'jobs');
+      this._loadJobs();
     },
 
     onDescriptionChange: function () {
@@ -100,6 +103,130 @@ sap.ui.define([
       }
     },
 
+    onZipFileChange: function (event) {
+      const file = event.getParameter('files') && event.getParameter('files')[0];
+      const deployZipButton = this.byId('deployZipButton');
+
+      this._zipBase64 = null;
+      deployZipButton.setEnabled(false);
+
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        // reader.result is a data: URL - strip the "data:...;base64," prefix.
+        this._zipBase64 = reader.result.split(',')[1];
+        deployZipButton.setEnabled(true);
+      };
+      reader.onerror = () => {
+        MessageToast.show(this._i18n.getText('fileReadError'));
+      };
+      reader.readAsDataURL(file);
+    },
+
+    onDeployZipPress: async function () {
+      const id = this.byId('zipArtifactIdInput').getValue().trim();
+      const name = this.byId('zipArtifactNameInput').getValue().trim();
+      const packageId = this.byId('zipPackageIdInput').getValue().trim();
+      const description = this.byId('zipDescriptionInput').getValue().trim();
+
+      if (!id || !name || !packageId || !this._zipBase64) {
+        MessageToast.show(this._i18n.getText('zipValidationError'));
+        return;
+      }
+
+      this._resetAttempts();
+      this._setStatus('RUNNING', this._i18n.getText('statusRunning'));
+      this._hideError();
+      this._hideMaxAttempts();
+      this.byId('deployZipButton').setEnabled(false);
+      this.byId('fixButton').setVisible(false);
+
+      try {
+        const response = await fetch(`${SERVICE_URL}/deployZip`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, name, packageId, zipBase64: this._zipBase64, description })
+        });
+
+        const body = await response.json();
+
+        if (!response.ok) {
+          throw new Error((body.error && body.error.message) || `Request failed with status ${response.status}`);
+        }
+
+        this._currentJobId = body.jobId;
+        this._pollJob(body.jobId);
+      } catch (err) {
+        this._setStatus('FAILED', this._i18n.getText('statusStartFailed'));
+        this._showError(err.message);
+      } finally {
+        this.byId('deployZipButton').setEnabled(true);
+      }
+    },
+
+    onAddManualJobPress: async function () {
+      const id = this.byId('manualArtifactIdInput').getValue().trim();
+      const name = this.byId('manualArtifactNameInput').getValue().trim();
+      const packageId = this.byId('manualPackageIdInput').getValue().trim();
+      const description = this.byId('manualDescriptionInput').getValue().trim();
+
+      if (!id || !name || !packageId) {
+        MessageToast.show(this._i18n.getText('manualValidationError'));
+        return;
+      }
+
+      try {
+        const response = await fetch(`${SERVICE_URL}/addManualJob`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, name, packageId, description })
+        });
+
+        const body = await response.json();
+
+        if (!response.ok) {
+          throw new Error((body.error && body.error.message) || `Request failed with status ${response.status}`);
+        }
+
+        MessageToast.show(this._i18n.getText('manualJobAdded'));
+        await this._loadJobs();
+      } catch (err) {
+        MessageToast.show(err.message);
+      }
+    },
+
+    _loadJobs: async function () {
+      try {
+        const response = await fetch(`${SERVICE_URL}/listJobs()`);
+        const body = await response.json();
+
+        if (!response.ok) {
+          throw new Error((body.error && body.error.message) || 'Could not list jobs.');
+        }
+
+        this.getView().getModel('jobs').setProperty('/list', body.value || []);
+      } catch (err) {
+        MessageToast.show(err.message);
+      }
+    },
+
+    onRefreshJobsPress: function () {
+      this._loadJobs();
+    },
+
+    onSelectJobPress: function (event) {
+      const context = event.getSource().getBindingContext('jobs');
+      const jobId = context.getProperty('jobId');
+
+      this._currentJobId = jobId;
+      this._resetAttempts();
+      this._hideError();
+      this._hideMaxAttempts();
+      this._setStatus('RUNNING', this._i18n.getText('statusRunning'));
+      this._pollJob(jobId);
+    },
+
     _pollJob: function (jobId) {
       clearTimeout(this._pollHandle);
 
@@ -140,6 +267,8 @@ sap.ui.define([
             this._setStatus('FAILED', this._i18n.getText('statusFailed'));
             if (job.error) this._showError(job.error);
           }
+
+          this._loadJobs();
         } catch (err) {
           this.byId('deployButton').setEnabled(true);
           this._setStatus('FAILED', this._i18n.getText('statusFailed'));

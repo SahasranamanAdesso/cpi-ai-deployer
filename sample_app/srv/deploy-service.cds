@@ -15,6 +15,39 @@ service DeployService {
         jobId : String;
     };
 
+    action deployZip(
+        id          : String,
+        name        : String,
+        packageId   : String,
+        zipBase64   : LargeString,
+        description : LargeString
+    ) returns {
+        jobId : String;
+    };
+
+    action addManualJob(
+        id          : String,
+        name        : String,
+        packageId   : String,
+        description : LargeString
+    ) returns {
+        jobId : String;
+    };
+
+    function listJobs() returns array of {
+        jobId          : String;
+        id             : String;
+        name           : String;
+        packageId      : String;
+        source         : String;
+        status         : String;
+        attemptCount   : Integer;
+        canRetry       : Boolean;
+        hasDescription : Boolean;
+        createdAt      : String;
+        updatedAt      : String;
+    };
+
     function jobStatus(
         jobId : String
     ) returns {
