@@ -418,8 +418,6 @@ sap.ui.define([
     },
 
     onCheckErrorsPress: async function () {
-      this._hideErrorDetail();
-
       try {
         const response = await fetch(`${SERVICE_URL}/listErrorArtifacts()`);
         const body = await response.json();
@@ -443,8 +441,6 @@ sap.ui.define([
       const context = event.getSource().getBindingContext('errors');
       const id = context.getProperty('Id');
 
-      this._hideErrorDetail();
-
       try {
         const response = await fetch(`${SERVICE_URL}/getArtifactError(id='${encodeURIComponent(id)}')`);
         const body = await response.json();
@@ -453,24 +449,13 @@ sap.ui.define([
           throw new Error((body.error && body.error.message) || `Could not fetch error detail for '${id}'.`);
         }
 
-        this._showErrorDetail(
-          body.detail === null
-            ? this._i18n.getText('errorDetailEmpty', [id])
-            : `${id}:\n${body.detail}`
+        MessageBox.show(
+          body.detail === null ? this._i18n.getText('errorDetailEmpty', [id]) : body.detail,
+          { icon: MessageBox.Icon.ERROR, title: this._i18n.getText('errorDialogTitle', [id]) }
         );
       } catch (err) {
-        this._showErrorDetail(err.message);
+        MessageBox.error(err.message);
       }
-    },
-
-    _showErrorDetail: function (text) {
-      const strip = this.byId('errorDetailStrip');
-      strip.setText(text);
-      strip.setVisible(true);
-    },
-
-    _hideErrorDetail: function () {
-      this.byId('errorDetailStrip').setVisible(false);
     }
 
   });
