@@ -187,14 +187,75 @@
                     class="sapUiSmallMarginTop"
                   />
 
-                  <Button
-                    id="deployZipButton"
-                    text="{i18n>deployZipButtonText}"
-                    type="Emphasized"
-                    enabled="false"
+                  <HBox class="sapUiSmallMarginTop">
+                    <Button
+                      id="deployZipButton"
+                      text="{i18n>deployZipButtonText}"
+                      type="Emphasized"
+                      enabled="false"
+                      press="onDeployZipPress"
+                    />
+                    <Button
+                      id="zipFixButton"
+                      text="{i18n>fixButtonText}"
+                      type="Attention"
+                      visible="false"
+                      class="sapUiTinyMarginBegin"
+                      press="onFixAndRedeployPress"
+                    />
+                  </HBox>
+
+                  <HBox class="sapUiSmallMarginTop" alignItems="Center">
+                    <BusyIndicator id="zipStatusBusy" visible="false" size="1rem" class="sapUiTinyMarginEnd" />
+                    <ObjectStatus id="zipStatusText" text="{i18n>statusInitial}" state="None" />
+                  </HBox>
+
+                  <MessageStrip
+                    id="zipErrorStrip"
+                    visible="false"
+                    type="Error"
+                    showIcon="true"
                     class="sapUiSmallMarginTop"
-                    press="onDeployZipPress"
                   />
+
+                  <MessageStrip
+                    id="zipMaxAttemptsStrip"
+                    visible="false"
+                    type="Warning"
+                    showIcon="true"
+                    text="{i18n>maxAttemptsReached}"
+                    class="sapUiSmallMarginTop"
+                  />
+
+                  <Table
+                    id="zipAttemptsTable"
+                    class="sapUiSmallMarginTop"
+                    items="{attempts>/list}"
+                    noDataText="{i18n>noAttemptsYet}"
+                  >
+                    <columns>
+                      <Column><Text text="{i18n>colAttempt}" /></Column>
+                      <Column><Text text="{i18n>colResult}" /></Column>
+                      <Column><Text text="{i18n>colSummary}" /></Column>
+                      <Column><Text text="{i18n>colDownload}" /></Column>
+                    </columns>
+                    <items>
+                      <ColumnListItem>
+                        <cells>
+                          <Text text="{attempts>attemptNumber}" />
+                          <ObjectStatus text="{attempts>status}" state="{attempts>statusState}" />
+                          <Text text="{attempts>summary}" />
+                          <Button
+                            icon="sap-icon://download"
+                            type="Transparent"
+                            text="{i18n>downloadButtonText}"
+                            visible="{attempts>hasZip}"
+                            press="onDownloadZipPress"
+                          />
+                        </cells>
+                      </ColumnListItem>
+                    </items>
+                  </Table>
                 </VBox>
               </IconTabFilter>
 

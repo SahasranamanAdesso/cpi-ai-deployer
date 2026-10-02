@@ -51,7 +51,7 @@ sap.ui.define([
       this._hideError();
       this._hideMaxAttempts();
       this.byId('deployButton').setEnabled(false);
-      this.byId('fixButton').setVisible(false);
+      this._setFixButtonsVisible(false);
 
       try {
         const response = await fetch(`${SERVICE_URL}/generateAndDeploy`, {
@@ -80,7 +80,7 @@ sap.ui.define([
 
       this._setStatus('RUNNING', this._i18n.getText('statusFixing'));
       this._hideError();
-      this.byId('fixButton').setEnabled(false);
+      this._setFixButtonsEnabled(false);
 
       try {
         const response = await fetch(`${SERVICE_URL}/fixAndRedeploy`, {
@@ -99,8 +99,16 @@ sap.ui.define([
       } catch (err) {
         this._setStatus('FAILED', this._i18n.getText('statusFixFailed'));
         this._showError(err.message);
-        this.byId('fixButton').setEnabled(true);
+        this._setFixButtonsEnabled(true);
       }
+    },
+
+    _setFixButtonsEnabled: function (enabled) {
+      ['fixButton', 'zipFixButton'].forEach((id) => this.byId(id).setEnabled(enabled));
+    },
+
+    _setFixButtonsVisible: function (visible) {
+      ['fixButton', 'zipFixButton'].forEach((id) => this.byId(id).setVisible(visible));
     },
 
     onZipFileChange: function (event) {
@@ -140,7 +148,7 @@ sap.ui.define([
       this._hideError();
       this._hideMaxAttempts();
       this.byId('deployZipButton').setEnabled(false);
-      this.byId('fixButton').setVisible(false);
+      this._setFixButtonsVisible(false);
 
       try {
         const response = await fetch(`${SERVICE_URL}/deployZip`, {
@@ -160,7 +168,6 @@ sap.ui.define([
       } catch (err) {
         this._setStatus('FAILED', this._i18n.getText('statusStartFailed'));
         this._showError(err.message);
-      } finally {
         this.byId('deployZipButton').setEnabled(true);
       }
     },
@@ -259,8 +266,9 @@ sap.ui.define([
           }
 
           this.byId('deployButton').setEnabled(true);
-          this.byId('fixButton').setEnabled(true);
-          this.byId('fixButton').setVisible(job.canRetry);
+          this.byId('deployZipButton').setEnabled(true);
+          this._setFixButtonsEnabled(true);
+          this._setFixButtonsVisible(job.canRetry);
 
           if (!job.canRetry && job.status !== 'STARTED') {
             this._showMaxAttempts();
@@ -282,6 +290,7 @@ sap.ui.define([
           this._loadJobs();
         } catch (err) {
           this.byId('deployButton').setEnabled(true);
+          this.byId('deployZipButton').setEnabled(true);
           this._setStatus('FAILED', this._i18n.getText('statusFailed'));
           this._showError(err.message);
         }
@@ -310,31 +319,41 @@ sap.ui.define([
       this.getView().getModel('attempts').setProperty('/list', decorated);
     },
 
-    _setStatus: function (statusKey, text) {
-      const statusText = this.byId('statusText');
-      const statusBusy = this.byId('statusBusy');
+    // Generate and Deploy ZIP are two different tabs driving the same job/
+    // attempts model, so every status/error/max-attempts update is mirrored
+    // onto both tabs' controls - whichever one the user is looking at shows
+    // the live result.
 
-      statusText.setText(text);
-      statusText.setState(STATUS_STATE[statusKey] || 'None');
-      statusBusy.setVisible(statusKey === 'RUNNING');
+    _setStatus: function (statusKey, text) {
+      const state = STATUS_STATE[statusKey] || 'None';
+
+      ['statusText', 'zipStatusText'].forEach((id) => {
+        this.byId(id).setText(text);
+        this.byId(id).setState(state);
+      });
+      ['statusBusy', 'zipStatusBusy'].forEach((id) => {
+        this.byId(id).setVisible(statusKey === 'RUNNING');
+      });
     },
 
     _showError: function (message) {
-      const strip = this.byId('errorStrip');
-      strip.setText(message);
-      strip.setVisible(true);
+      ['errorStrip', 'zipErrorStrip'].forEach((id) => {
+        const strip = this.byId(id);
+        strip.setText(message);
+        strip.setVisible(true);
+      });
     },
 
     _hideError: function () {
-      this.byId('errorStrip').setVisible(false);
+      ['errorStrip', 'zipErrorStrip'].forEach((id) => this.byId(id).setVisible(false));
     },
 
     _showMaxAttempts: function () {
-      this.byId('maxAttemptsStrip').setVisible(true);
+      ['maxAttemptsStrip', 'zipMaxAttemptsStrip'].forEach((id) => this.byId(id).setVisible(true));
     },
 
     _hideMaxAttempts: function () {
-      this.byId('maxAttemptsStrip').setVisible(false);
+      ['maxAttemptsStrip', 'zipMaxAttemptsStrip'].forEach((id) => this.byId(id).setVisible(false));
     },
 
     onCheckErrorsPress: async function () {
