@@ -1,8 +1,9 @@
 sap.ui.define([
   'sap/ui/core/mvc/Controller',
   'sap/ui/model/json/JSONModel',
-  'sap/m/MessageToast'
-], function (Controller, JSONModel, MessageToast) {
+  'sap/m/MessageToast',
+  'sap/m/MessageBox'
+], function (Controller, JSONModel, MessageToast, MessageBox) {
   'use strict';
 
   const STATUS_STATE = {
@@ -172,35 +173,86 @@ sap.ui.define([
       }
     },
 
-    onAddManualJobPress: async function () {
-      const id = this.byId('manualArtifactIdInput').getValue().trim();
-      const name = this.byId('manualArtifactNameInput').getValue().trim();
-      const packageId = this.byId('manualPackageIdInput').getValue().trim();
-      const description = this.byId('manualDescriptionInput').getValue().trim();
+    onFixBrokenFlowPress: function (event) {
+      const context = event.getSource().getBindingContext('errors');
+      this._fixDialogArtifact = {
+        id: context.getProperty('Id'),
+        name: context.getProperty('Name') || context.getProperty('Id')
+      };
 
-      if (!id || !name || !packageId) {
-        MessageToast.show(this._i18n.getText('manualValidationError'));
+      this.byId('fixDialogIntro').setText(this._i18n.getText('fixDialogIntro', [this._fixDialogArtifact.id]));
+      this.byId('fixDialogPackageIdInput').setValue('');
+      this.byId('fixDialogDescriptionInput').setValue('');
+      this.byId('fixDialogErrorStrip').setVisible(false);
+      this.byId('fixDialogStatusText').setText('');
+      this.byId('fixDialogBusy').setVisible(false);
+      this.byId('fixRedeployDialog').open();
+    },
+
+    onConfirmFixRedeploy: async function () {
+      const { id, name } = this._fixDialogArtifact;
+      const packageId = this.byId('fixDialogPackageIdInput').getValue().trim();
+      const description = this.byId('fixDialogDescriptionInput').getValue().trim();
+
+      if (!packageId || !description) {
+        MessageToast.show(this._i18n.getText('fixDialogMissingDescription'));
         return;
       }
 
+      this.byId('fixDialogBusy').setVisible(true);
+      this.byId('fixDialogErrorStrip').setVisible(false);
+      this.byId('fixDialogConfirmButton').setEnabled(false);
+      this.byId('fixDialogStatusText').setText(this._i18n.getText('statusRunning'));
+
       try {
-        const response = await fetch(`${SERVICE_URL}/addManualJob`, {
+        const addResponse = await fetch(`${SERVICE_URL}/addManualJob`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, name, packageId, description })
         });
-
-        const body = await response.json();
-
-        if (!response.ok) {
-          throw new Error((body.error && body.error.message) || `Request failed with status ${response.status}`);
+        const addBody = await addResponse.json();
+        if (!addResponse.ok) {
+          throw new Error((addBody.error && addBody.error.message) || `Request failed with status ${addResponse.status}`);
         }
 
-        MessageToast.show(this._i18n.getText('manualJobAdded'));
+        const fixResponse = await fetch(`${SERVICE_URL}/fixAndRedeploy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId: addBody.jobId })
+        });
+        const fixBody = await fixResponse.json();
+        if (!fixResponse.ok) {
+          throw new Error((fixBody.error && fixBody.error.message) || `Request failed with status ${fixResponse.status}`);
+        }
+
+        MessageToast.show(this._i18n.getText('fixDialogStarted'));
+        this.byId('fixRedeployDialog').close();
+        this._currentJobId = addBody.jobId;
         await this._loadJobs();
+        this.byId('iconTabBar').setSelectedKey('history');
       } catch (err) {
-        MessageToast.show(err.message);
+        this.byId('fixDialogStatusText').setText('');
+        const strip = this.byId('fixDialogErrorStrip');
+        strip.setText(err.message);
+        strip.setVisible(true);
+      } finally {
+        this.byId('fixDialogBusy').setVisible(false);
+        this.byId('fixDialogConfirmButton').setEnabled(true);
       }
+    },
+
+    onCloseFixDialog: function () {
+      this.byId('fixRedeployDialog').close();
+    },
+
+    onShowSummaryPress: function (event) {
+      const context = event.getSource().getBindingContext('attempts');
+      const attemptNumber = context.getProperty('attemptNumber');
+      const summary = context.getProperty('summary');
+
+      MessageBox.information(summary, {
+        title: this._i18n.getText('summaryDialogTitle', [attemptNumber])
+      });
     },
 
     _loadJobs: async function () {

@@ -7,50 +7,22 @@
 >
   <Shell appWidthLimited="false">
     <App>
-      <Page title="{i18n>appTitle}">
+      <Page title="{i18n>appTitle}" class="sapUiResponsiveContentPadding">
         <content>
-          <IconTabBar id="iconTabBar" class="sapUiResponsiveContentPadding" expandable="false">
+
+          <VBox class="sapUiSmallMarginBottom">
+            <Text text="{i18n>appDescription}" class="sapUiTinyMarginBottom" />
+          </VBox>
+
+          <IconTabBar
+            id="iconTabBar"
+            headerMode="Inline"
+            expandable="false"
+            class="sapUiResponsiveContentPadding appTabBar"
+          >
             <items>
 
-              <IconTabFilter key="history" icon="sap-icon://history" text="{i18n>tabJobHistory}">
-                <VBox class="sapUiSmallMarginTop">
-                  <Button
-                    id="refreshJobsButton"
-                    text="{i18n>refreshJobsButtonText}"
-                    press="onRefreshJobsPress"
-                  />
-
-                  <Table
-                    id="jobsTable"
-                    class="sapUiSmallMarginTop"
-                    items="{jobs>/list}"
-                    noDataText="{i18n>noJobsYet}"
-                  >
-                    <columns>
-                      <Column><Text text="{i18n>colArtifactId}" /></Column>
-                      <Column><Text text="{i18n>colSource}" /></Column>
-                      <Column><Text text="{i18n>colResult}" /></Column>
-                      <Column><Text text="{i18n>colAttempt}" /></Column>
-                      <Column><Text text="{i18n>colUpdatedAt}" /></Column>
-                      <Column></Column>
-                    </columns>
-                    <items>
-                      <ColumnListItem>
-                        <cells>
-                          <Text text="{jobs>id}" />
-                          <Text text="{jobs>source}" />
-                          <ObjectStatus text="{jobs>status}" />
-                          <Text text="{jobs>attemptCount}" />
-                          <Text text="{jobs>updatedAt}" />
-                          <Button text="{i18n>selectJobButtonText}" press="onSelectJobPress" />
-                        </cells>
-                      </ColumnListItem>
-                    </items>
-                  </Table>
-                </VBox>
-              </IconTabFilter>
-
-              <IconTabFilter key="generate" icon="sap-icon://create" text="{i18n>tabGenerate}">
+              <IconTabFilter key="generate" text="{i18n>tabGenerate}">
                 <VBox>
                   <Panel headerText="{i18n>stepDetailsHeader}" class="sapUiResponsiveMargin">
                     <content>
@@ -139,7 +111,11 @@
                               <cells>
                                 <Text text="{attempts>attemptNumber}" />
                                 <ObjectStatus text="{attempts>status}" state="{attempts>statusState}" />
-                                <Text text="{attempts>summary}" />
+                                <Button
+                                  text="{i18n>showSummaryButtonText}"
+                                  type="Transparent"
+                                  press="onShowSummaryPress"
+                                />
                                 <Button
                                   icon="sap-icon://download"
                                   type="Transparent"
@@ -157,7 +133,7 @@
                 </VBox>
               </IconTabFilter>
 
-              <IconTabFilter key="zip" icon="sap-icon://upload" text="{i18n>tabZip}">
+              <IconTabFilter key="zip" text="{i18n>tabZip}">
                 <VBox class="sapUiSmallMarginTop">
                   <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
                     <Label text="{i18n>artifactIdLabel}" />
@@ -244,7 +220,11 @@
                         <cells>
                           <Text text="{attempts>attemptNumber}" />
                           <ObjectStatus text="{attempts>status}" state="{attempts>statusState}" />
-                          <Text text="{attempts>summary}" />
+                          <Button
+                            text="{i18n>showSummaryButtonText}"
+                            type="Transparent"
+                            press="onShowSummaryPress"
+                          />
                           <Button
                             icon="sap-icon://download"
                             type="Transparent"
@@ -259,37 +239,7 @@
                 </VBox>
               </IconTabFilter>
 
-              <IconTabFilter key="manual" icon="sap-icon://add-document" text="{i18n>tabManual}">
-                <VBox class="sapUiSmallMarginTop">
-                  <f:SimpleForm editable="true" layout="ResponsiveGridLayout">
-                    <Label text="{i18n>artifactIdLabel}" />
-                    <Input id="manualArtifactIdInput" placeholder="{i18n>artifactIdPlaceholder}" />
-
-                    <Label text="{i18n>artifactNameLabel}" />
-                    <Input id="manualArtifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
-
-                    <Label text="{i18n>packageIdLabel}" />
-                    <Input id="manualPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
-                  </f:SimpleForm>
-
-                  <TextArea
-                    id="manualDescriptionInput"
-                    placeholder="{i18n>manualDescriptionPlaceholder}"
-                    rows="2"
-                    width="100%"
-                  />
-
-                  <Button
-                    id="addManualJobButton"
-                    text="{i18n>addManualJobButtonText}"
-                    type="Emphasized"
-                    class="sapUiSmallMarginTop"
-                    press="onAddManualJobPress"
-                  />
-                </VBox>
-              </IconTabFilter>
-
-              <IconTabFilter key="errors" icon="sap-icon://alert" text="{i18n>tabErrors}">
+              <IconTabFilter key="errors" text="{i18n>tabErrors}">
                 <VBox class="sapUiSmallMarginTop">
                   <Button
                     id="checkErrorsButton"
@@ -307,13 +257,15 @@
                       <Column><Text text="{i18n>colArtifactId}" /></Column>
                       <Column><Text text="{i18n>colDeployedOn}" /></Column>
                       <Column></Column>
+                      <Column></Column>
                     </columns>
                     <items>
                       <ColumnListItem>
                         <cells>
                           <Text text="{errors>Id}" />
                           <Text text="{errors>DeployedOn}" />
-                          <Button text="{i18n>viewErrorButtonText}" press="onViewErrorPress" />
+                          <Button text="{i18n>viewErrorButtonText}" type="Transparent" press="onViewErrorPress" />
+                          <Button text="{i18n>fixButtonText}" type="Attention" press="onFixBrokenFlowPress" />
                         </cells>
                       </ColumnListItem>
                     </items>
@@ -329,10 +281,89 @@
                 </VBox>
               </IconTabFilter>
 
+              <IconTabFilter key="history" text="{i18n>tabJobHistory}">
+                <VBox class="sapUiSmallMarginTop">
+                  <Button
+                    id="refreshJobsButton"
+                    text="{i18n>refreshJobsButtonText}"
+                    press="onRefreshJobsPress"
+                  />
+
+                  <Table
+                    id="jobsTable"
+                    class="sapUiSmallMarginTop"
+                    items="{jobs>/list}"
+                    noDataText="{i18n>noJobsYet}"
+                  >
+                    <columns>
+                      <Column><Text text="{i18n>colArtifactId}" /></Column>
+                      <Column><Text text="{i18n>colSource}" /></Column>
+                      <Column><Text text="{i18n>colResult}" /></Column>
+                      <Column><Text text="{i18n>colAttempt}" /></Column>
+                      <Column><Text text="{i18n>colUpdatedAt}" /></Column>
+                      <Column></Column>
+                    </columns>
+                    <items>
+                      <ColumnListItem>
+                        <cells>
+                          <Text text="{jobs>id}" />
+                          <Text text="{jobs>source}" />
+                          <ObjectStatus text="{jobs>status}" />
+                          <Text text="{jobs>attemptCount}" />
+                          <Text text="{jobs>updatedAt}" />
+                          <Button text="{i18n>selectJobButtonText}" press="onSelectJobPress" />
+                        </cells>
+                      </ColumnListItem>
+                    </items>
+                  </Table>
+                </VBox>
+              </IconTabFilter>
+
             </items>
           </IconTabBar>
+
         </content>
       </Page>
     </App>
   </Shell>
+
+  <Dialog
+    id="fixRedeployDialog"
+    title="{i18n>fixDialogTitle}"
+    contentWidth="28rem"
+  >
+    <content>
+      <VBox class="sapUiSmallMargin">
+        <Text id="fixDialogIntro" class="sapUiSmallMarginBottom" />
+
+        <f:SimpleForm id="fixDialogForm" editable="true" layout="ResponsiveGridLayout">
+          <Label text="{i18n>packageIdLabel}" />
+          <Input id="fixDialogPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+
+          <Label text="{i18n>stepDescriptionHeader}" />
+          <TextArea id="fixDialogDescriptionInput" rows="3" width="100%" placeholder="{i18n>descriptionPlaceholder}" />
+        </f:SimpleForm>
+
+        <HBox class="sapUiSmallMarginTop" alignItems="Center">
+          <BusyIndicator id="fixDialogBusy" visible="false" size="1rem" class="sapUiTinyMarginEnd" />
+          <ObjectStatus id="fixDialogStatusText" text="" state="None" />
+        </HBox>
+
+        <MessageStrip
+          id="fixDialogErrorStrip"
+          visible="false"
+          type="Error"
+          showIcon="true"
+          class="sapUiSmallMarginTop"
+        />
+      </VBox>
+    </content>
+    <beginButton>
+      <Button id="fixDialogConfirmButton" text="{i18n>fixButtonText}" type="Emphasized" press="onConfirmFixRedeploy" />
+    </beginButton>
+    <endButton>
+      <Button text="{i18n>closeButtonText}" press="onCloseFixDialog" />
+    </endButton>
+  </Dialog>
+
 </mvc:View>

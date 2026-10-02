@@ -37,16 +37,22 @@ both packages' APIs in context, not to be a production deployment tool.
     above - useful for browsing the whole tenant).
   - `getArtifactError(id)` - wraps `deployer.getArtifactError(id)`. Answers
     "why is *this* flow broken?"
-- **`app/deployer/webapp/`** - a small freestyle UI5 app with:
-  - a form for Artifact ID / name / Package ID,
-  - a text area to describe the flow in natural language,
-  - a "Generate & Deploy" button, a status indicator (busy spinner + colored
-    `ObjectStatus`), and an attempt-history table showing every generate/deploy
-    attempt for the current job,
-  - a "Fix & Redeploy" button that appears whenever the latest attempt failed
-    and the per-job attempt cap hasn't been reached,
-  - a "Check for errors" panel: lists artifacts in `ERROR` status, and lets
-    you view the error detail for any of them.
+- **`app/deployer/webapp/`** - a small freestyle UI5 app with four tabs
+  (text headers, not icons):
+  - **Generate iFlow** - describe a flow in natural language, click
+    "Generate & Deploy", watch status + an attempt-history table (each row's
+    "Show" opens a popup with that attempt's full summary); a "Fix &
+    Redeploy" button appears whenever the latest attempt failed and the
+    per-job attempt cap hasn't been reached.
+  - **Deploy my iFlow** - upload an existing iFlow `.zip` directly, with the
+    same status/attempts/Fix & Redeploy UI as Generate iFlow.
+  - **Broken Flows** - lists tenant artifacts in `ERROR` status; "View error"
+    shows SAP's raw error detail, "Fix & Redeploy" opens a dialog (Package ID
+    + description) that registers the flow as a job and immediately retries
+    it with the AI, using SAP's error as feedback.
+  - **Job History** - every job ever run (AI-generated, ZIP-uploaded, or
+    picked up from Broken Flows), with "Select" to resume tracking one in the
+    Generate tab.
 
 The whole point: the UI never talks to CPI or the AI provider directly, and
 the CAP service never implements any CPI-specific HTTP calls or prompt

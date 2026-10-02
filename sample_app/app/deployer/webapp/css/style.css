@@ -1,0 +1,11 @@
+.appTabBar > .sapMITBHead {
+  border-bottom: 1px solid var(--sapList_BorderColor);
+}
+
+.appTabBar .sapMITBFilter {
+  font-weight: 600;
+}
+
+.appTabBar .sapMITBSelected {
+  font-weight: 700;
+}
