@@ -34,7 +34,7 @@
                         <Input id="artifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
 
                         <Label text="{i18n>packageIdLabel}" />
-                        <Input id="packageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+                        <Input id="packageIdInput" value="cpipackage" placeholder="{i18n>packageIdPlaceholder}" />
                       </f:SimpleForm>
                     </content>
                   </Panel>
@@ -143,7 +143,7 @@
                     <Input id="zipArtifactNameInput" placeholder="{i18n>artifactNamePlaceholder}" />
 
                     <Label text="{i18n>packageIdLabel}" />
-                    <Input id="zipPackageIdInput" placeholder="{i18n>packageIdPlaceholder}" />
+                    <Input id="zipPackageIdInput" value="cpipackage" placeholder="{i18n>packageIdPlaceholder}" />
                   </f:SimpleForm>
 
                   <u:FileUploader

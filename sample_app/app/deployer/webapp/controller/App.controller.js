@@ -175,14 +175,23 @@ sap.ui.define([
 
     onFixBrokenFlowPress: function (event) {
       const context = event.getSource().getBindingContext('errors');
+      const id = context.getProperty('Id');
       this._fixDialogArtifact = {
-        id: context.getProperty('Id'),
-        name: context.getProperty('Name') || context.getProperty('Id')
+        id,
+        name: context.getProperty('Name') || id
       };
 
-      this.byId('fixDialogIntro').setText(this._i18n.getText('fixDialogIntro', [this._fixDialogArtifact.id]));
-      this.byId('fixDialogPackageIdInput').setValue('');
-      this.byId('fixDialogDescriptionInput').setValue('');
+      // Pull the most recent known packageId/description for this artifact
+      // from job history (data/jobs.csv via listJobs), so the user doesn't
+      // have to retype what the app already knows - defaults to cpipackage
+      // and a blank description only when this artifact has no prior job.
+      const priorJob = this.getView().getModel('jobs').getProperty('/list')
+        .filter((job) => job.id === id)
+        .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
+
+      this.byId('fixDialogIntro').setText(this._i18n.getText('fixDialogIntro', [id]));
+      this.byId('fixDialogPackageIdInput').setValue((priorJob && priorJob.packageId) || 'cpipackage');
+      this.byId('fixDialogDescriptionInput').setValue((priorJob && priorJob.originalRequest) || '');
       this.byId('fixDialogErrorStrip').setVisible(false);
       this.byId('fixDialogStatusText').setText('');
       this.byId('fixDialogBusy').setVisible(false);

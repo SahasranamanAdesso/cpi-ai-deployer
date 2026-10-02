@@ -41,17 +41,18 @@ service DeployService {
     };
 
     function listJobs() returns array of {
-        jobId          : String;
-        id             : String;
-        name           : String;
-        packageId      : String;
-        source         : String;
-        status         : String;
-        attemptCount   : Integer;
-        canRetry       : Boolean;
-        hasDescription : Boolean;
-        createdAt      : String;
-        updatedAt      : String;
+        jobId           : String;
+        id              : String;
+        name            : String;
+        packageId       : String;
+        source          : String;
+        status          : String;
+        attemptCount    : Integer;
+        canRetry        : Boolean;
+        hasDescription  : Boolean;
+        originalRequest : String;
+        createdAt       : String;
+        updatedAt       : String;
     };
 
     function jobStatus(

@@ -329,6 +329,7 @@ module.exports = cds.service.impl(async function () {
         attemptCount: job.attempts.length,
         canRetry: canRetryJob(job),
         hasDescription: Boolean(job.originalRequest),
+        originalRequest: job.originalRequest || '',
         createdAt: job.createdAt,
         updatedAt: job.updatedAt
       }))
