@@ -18,6 +18,41 @@ const deployer = new CpiDeployer();
 const DEFAULT_AI_HUB_URL = 'https://adesso-ai-hub.3asabc.de/v1/chat/completions';
 const DEFAULT_AI_HUB_MODEL = 'deepseek-v4-flash-sovereign';
 
+// adesso AI Hub issues separate keys per model family - AI_HUB_API_KEY_claude
+// is scoped to Claude models, AI_HUB_API_KEY to the sovereign/open models
+// (deepseek, qwen, ...). A key used against a model outside its scope gets a
+// 403 (key_model_access_denied), not a generic auth error.
+const DEFAULT_CLAUDE_MODEL = 'claude-haiku-4-5';
+
+/**
+ * Wraps a primary/secondary AIProvider pair behind the single-method
+ * AIProvider interface AIPipeline expects. Tries primary first; on ANY
+ * failure (rate limit, backend-down 502, wrong-key-for-model 403, etc.)
+ * falls back to secondary and reports which one actually produced the
+ * result (or both failures, if secondary also fails).
+ */
+class FallbackAIProvider {
+  constructor(primary, secondary) {
+    this.primary = primary;
+    this.secondary = secondary;
+  }
+
+  async generate(prompt) {
+    try {
+      return await this.primary.generate(prompt);
+    } catch (primaryErr) {
+      if (!this.secondary) throw primaryErr;
+      try {
+        return await this.secondary.generate(prompt);
+      } catch (secondaryErr) {
+        throw new Error(
+          `Primary provider failed: ${primaryErr.message}; fallback also failed: ${secondaryErr.message}`
+        );
+      }
+    }
+  }
+}
+
 // Cap on manual "Fix & Redeploy" clicks per job - each one calls the AI
 // provider and re-deploys, so this bounds cost/time for a runaway loop.
 const MAX_MANUAL_ATTEMPTS = 5;
@@ -42,18 +77,34 @@ function persist() {
 }
 
 /**
- * Prefers adesso AI Hub (AI_HUB_API_KEY) when configured, falling back to a
- * direct Anthropic key (ANTHROPIC_API_KEY) otherwise. Both use the same
- * AIProvider interface from @cpi-ai/compiler, so the rest of the pipeline
- * (PromptBuilder, FlowValidator, CodeExecutor) is identical either way.
+ * Default chain: adesso AI Hub Claude Haiku (AI_HUB_API_KEY_claude) first -
+ * fast and reliable for this task - falling back to adesso AI Hub's
+ * sovereign model (AI_HUB_API_KEY, default deepseek-v4-flash-sovereign) if
+ * the Claude call fails for any reason (rate limit, backend outage, wrong
+ * key scope, etc). Falls back further to a direct Anthropic key
+ * (ANTHROPIC_API_KEY) only if neither AI Hub key is configured at all.
+ *
+ * adesso issues separate keys per model family - a sovereign-scoped key used
+ * against a Claude model (or vice versa) gets a 403, not a generic error -
+ * so AI_HUB_API_KEY_claude and AI_HUB_API_KEY must each be used with the
+ * model family they're actually scoped for.
  */
 function buildAiProvider() {
-  const aiHubKey = process.env.AI_HUB_API_KEY;
-  if (aiHubKey) {
-    const apiUrl = process.env.AI_HUB_API_URL || DEFAULT_AI_HUB_URL;
-    const model = process.env.AI_HUB_MODEL || DEFAULT_AI_HUB_MODEL;
-    return new AdessoAIHubProvider(aiHubKey, apiUrl, model);
-  }
+  const apiUrl = process.env.AI_HUB_API_URL || DEFAULT_AI_HUB_URL;
+
+  const claudeKey = process.env.AI_HUB_API_KEY_claude;
+  const sovereignKey = process.env.AI_HUB_API_KEY;
+
+  const primary = claudeKey
+    ? new AdessoAIHubProvider(claudeKey, apiUrl, process.env.AI_HUB_CLAUDE_MODEL || DEFAULT_CLAUDE_MODEL)
+    : null;
+  const secondary = sovereignKey
+    ? new AdessoAIHubProvider(sovereignKey, apiUrl, process.env.AI_HUB_MODEL || DEFAULT_AI_HUB_MODEL)
+    : null;
+
+  if (primary && secondary) return new FallbackAIProvider(primary, secondary);
+  if (primary) return primary;
+  if (secondary) return secondary;
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   if (anthropicKey) {
@@ -61,8 +112,9 @@ function buildAiProvider() {
   }
 
   throw new Error(
-    'No AI provider configured. Set AI_HUB_API_KEY (adesso AI Hub) or ANTHROPIC_API_KEY ' +
-    '(a direct Anthropic key, not a Claude Code session key) in sample_app/.env - see .env.example.'
+    'No AI provider configured. Set AI_HUB_API_KEY_claude and/or AI_HUB_API_KEY (adesso AI Hub), ' +
+    'or ANTHROPIC_API_KEY (a direct Anthropic key, not a Claude Code session key) in sample_app/.env - ' +
+    'see .env.example.'
   );
 }
 
